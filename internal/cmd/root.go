@@ -22,11 +22,23 @@ type App struct {
 func NewRootCmd() *cobra.Command {
 	app := &App{Ctx: context.Background()}
 	var outputFormat string
+	var showVersion bool
 
 	root := &cobra.Command{
 		Use:   "gitee",
 		Short: "A full-featured CLI for Gitee",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if showVersion {
+				printVersionBanner(cmd.OutOrStdout())
+				return nil
+			}
+			return cmd.Help()
+		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if showVersion {
+				printVersionBanner(cmd.OutOrStdout())
+				os.Exit(0)
+			}
 			cfg, err := config.Load()
 			if err != nil {
 				return err
@@ -40,7 +52,7 @@ func NewRootCmd() *cobra.Command {
 			} else {
 				storedToken, err := auth.LoadToken()
 				if err != nil {
-					return err
+					storedToken = ""
 				}
 				if storedToken != "" {
 					activeToken = storedToken
@@ -57,6 +69,7 @@ func NewRootCmd() *cobra.Command {
 	}
 
 	root.PersistentFlags().StringVarP(&outputFormat, "output", "o", "", "Output format: table|json")
+	root.PersistentFlags().BoolVarP(&showVersion, "version", "V", false, "Print version information")
 
 	root.AddCommand(
 		newAuthCmd(app),

@@ -21,8 +21,10 @@ func newAPICmd(app *App) *cobra.Command {
 		Short: "Make a raw API request to Gitee v5",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := ensureToken(app); err != nil {
-				return err
+			if !strings.EqualFold(method, http.MethodGet) {
+				if err := ensureToken(app); err != nil {
+					return err
+				}
 			}
 			query := map[string]string{}
 			body := map[string]any{}
