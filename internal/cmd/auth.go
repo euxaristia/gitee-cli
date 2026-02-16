@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -46,6 +49,13 @@ func newAuthCmd(app *App) *cobra.Command {
 			}
 			app.ActiveToken = token
 			app.Client = clientFrom(app, token)
+
+			user, err := app.Client.CurrentUser(app.Ctx)
+			if err == nil {
+				cfg.User = user.Login
+				config.Save(cfg)
+			}
+
 			fmt.Fprintln(os.Stdout, "Authenticated")
 			return nil
 		},
@@ -64,6 +74,7 @@ func newAuthCmd(app *App) *cobra.Command {
 				return err
 			}
 			cfg.Token = ""
+			cfg.User = ""
 			if err := config.Save(cfg); err != nil {
 				return err
 			}
@@ -107,7 +118,77 @@ func newAuthCmd(app *App) *cobra.Command {
 		},
 	}
 
-	authCmd.AddCommand(loginCmd, logoutCmd, statusCmd, tokenCmd)
+	gitCredentialCmd := &cobra.Command{
+		Use:    "git-credential",
+		Short:  "Helper for Git credentials",
+		Hidden: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return nil
+			}
+			operation := args[0]
+			if operation != "get" {
+				return nil
+			}
+
+			scanner := bufio.NewScanner(os.Stdin)
+			input := make(map[string]string)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if line == "" {
+					break
+				}
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					input[parts[0]] = parts[1]
+				}
+			}
+
+			if host, ok := input["host"]; !ok || host != "gitee.com" {
+				return nil
+			}
+
+			token := app.ActiveToken
+			if token == "" {
+				return nil
+			}
+
+			username := app.Cfg.User
+			if username == "" {
+				user, err := app.Client.CurrentUser(app.Ctx)
+				if err == nil {
+					username = user.Login
+				} else {
+					username = "oauth2"
+				}
+			}
+
+			fmt.Fprintf(os.Stdout, "username=%s\n", username)
+			fmt.Fprintf(os.Stdout, "password=%s\n", token)
+			return nil
+		},
+	}
+
+	setupGitCmd := &cobra.Command{
+		Use:   "setup-git",
+		Short: "Configure Git to use Gitee CLI as a credential helper",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			exe, err := os.Executable()
+			if err != nil {
+				return err
+			}
+
+			gitCmd := exec.Command("git", "config", "--global", "credential.https://gitee.com.helper", "!"+exe+" auth git-credential")
+			if err := gitCmd.Run(); err != nil {
+				return fmt.Errorf("failed to configure git: %w", err)
+			}
+
+			fmt.Fprintln(os.Stdout, "Git configured to use Gitee CLI for credentials.")
+			return nil
+		},
+	}
+
+	authCmd.AddCommand(loginCmd, logoutCmd, statusCmd, tokenCmd, gitCredentialCmd, setupGitCmd)
 	return authCmd
 }
 

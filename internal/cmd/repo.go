@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -35,7 +36,7 @@ func newRepoCmd(app *App) *cobra.Command {
 				if r.Private {
 					visibility = "private"
 				}
-				rows = append(rows, []string{r.FullName, visibility, r.DefaultBr, r.HTMLURL})
+				rows = append(rows, []string{r.FullName, visibility, r.DefaultBr, strings.TrimSuffix(r.HTMLURL, ".git")})
 			}
 			return printAny(app.Cfg.Output, []string{"NAME", "VISIBILITY", "DEFAULT", "URL"}, rows, repos)
 		},
@@ -61,7 +62,7 @@ func newRepoCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			rows := [][]string{{r.FullName, r.DefaultBr, fmt.Sprintf("%t", r.Private), r.HTMLURL}}
+			rows := [][]string{{r.FullName, r.DefaultBr, fmt.Sprintf("%t", r.Private), strings.TrimSuffix(r.HTMLURL, ".git")}}
 			return printAny(app.Cfg.Output, []string{"NAME", "DEFAULT", "PRIVATE", "URL"}, rows, r)
 		},
 	}
@@ -85,7 +86,7 @@ func newRepoCmd(app *App) *cobra.Command {
 			if app.Cfg.Output == string(output.FormatJSON) {
 				return output.PrintJSON(r)
 			}
-			fmt.Println(r.HTMLURL)
+			fmt.Println(strings.TrimSuffix(r.HTMLURL, ".git"))
 			return nil
 		},
 	}

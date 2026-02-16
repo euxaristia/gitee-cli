@@ -21,6 +21,7 @@ type Config struct {
 	Editor     string            `yaml:"editor"`
 	Aliases    map[string]string `yaml:"aliases"`
 	CurrentOrg string            `yaml:"current_org"`
+	User       string            `yaml:"user"`
 }
 
 func Default() *Config {
