@@ -6,6 +6,7 @@ A full-featured Gitee CLI inspired by `gh` for GitHub.
 
 - Authentication: `auth login/logout/status/token`
 - Repository workflows: `repo list/view/create/clone`
+- Git wrappers with retry for unstable network: `git push/pull`, and shortcuts `push/pull/commit`
 - Issue workflows: `issue list/view/create/comment/close/reopen`
 - Pull request workflows: `pr list/view/create/view/comment/merge/close`
 - Release workflows: `release list/view/create/delete`
@@ -58,6 +59,11 @@ Security behavior:
 gitee repo list --org my-org --visibility public
 gitee repo view owner/repo
 gitee repo create --name new-repo --description "demo" --private
+
+# Git wrappers
+gitee push origin master
+gitee pull --rebase
+gitee commit -m "feat: improve retry behavior"
 
 # Issues
 gitee issue create --repo owner/repo --title "Bug report" --body "details"

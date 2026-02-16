@@ -73,6 +73,10 @@ func NewRootCmd() *cobra.Command {
 
 	root.AddCommand(
 		newAuthCmd(app),
+		newGitCmd(app),
+		newGitShortcutCmd("commit"),
+		newGitShortcutCmd("push"),
+		newGitShortcutCmd("pull"),
 		newRepoCmd(app),
 		newIssueCmd(app),
 		newPRCmd(app),
