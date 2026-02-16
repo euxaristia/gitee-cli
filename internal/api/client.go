@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -20,11 +22,19 @@ type Client struct {
 }
 
 func New(baseURL, token string) *Client {
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           (&net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		TLSHandshakeTimeout:   30 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 	return &Client{
 		baseURL: strings.TrimSuffix(baseURL, "/"),
 		token:   token,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:   60 * time.Second,
+			Transport: transport,
 		},
 	}
 }
@@ -53,28 +63,21 @@ func (c *Client) Request(ctx context.Context, method, endpoint string, query map
 	}
 	u.RawQuery = q.Encode()
 
-	var bodyReader io.Reader
+	var bodyBytes []byte
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
 			return err
 		}
-		bodyReader = bytes.NewReader(b)
+		bodyBytes = b
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, u.String(), bodyReader)
+	req, err := c.newRequest(ctx, method, u.String(), bodyBytes)
 	if err != nil {
 		return err
 	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	req.Header.Set("Accept", "application/json")
-	if c.token != "" {
-		req.Header.Set("Authorization", "token "+c.token)
-	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doWithRetry(req, bodyBytes)
 	if err != nil {
 		return err
 	}
@@ -91,6 +94,66 @@ func (c *Client) Request(ctx context.Context, method, endpoint string, query map
 		return nil
 	}
 	return json.Unmarshal(payload, out)
+}
+
+func (c *Client) newRequest(ctx context.Context, method, rawURL string, bodyBytes []byte) (*http.Request, error) {
+	var bodyReader io.Reader
+	if len(bodyBytes) > 0 {
+		bodyReader = bytes.NewReader(bodyBytes)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, rawURL, bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	if len(bodyBytes) > 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.Header.Set("Accept", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "token "+c.token)
+	}
+	return req, nil
+}
+
+func (c *Client) doWithRetry(req *http.Request, bodyBytes []byte) (*http.Response, error) {
+	attempts := 1
+	if req.Method == http.MethodGet || req.Method == http.MethodHead {
+		attempts = 3
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		retryReq := req
+		if attempt > 1 {
+			r, err := c.newRequest(req.Context(), req.Method, req.URL.String(), bodyBytes)
+			if err != nil {
+				return nil, err
+			}
+			retryReq = r
+		}
+
+		resp, err := c.httpClient.Do(retryReq)
+		if err == nil {
+			return resp, nil
+		}
+		lastErr = err
+		if !isTransientNetErr(err) || attempt == attempts {
+			return nil, err
+		}
+		time.Sleep(time.Duration(attempt) * 700 * time.Millisecond)
+	}
+	return nil, lastErr
+}
+
+func isTransientNetErr(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "tls handshake timeout") ||
+		strings.Contains(msg, "connection reset by peer") ||
+		strings.Contains(msg, "unexpected eof")
 }
 
 type User struct {

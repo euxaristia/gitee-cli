@@ -31,9 +31,13 @@ func newRepoCmd(app *App) *cobra.Command {
 			}
 			rows := make([][]string, 0, len(repos))
 			for _, r := range repos {
-				rows = append(rows, []string{r.FullName, r.DefaultBr, r.HTMLURL})
+				visibility := "public"
+				if r.Private {
+					visibility = "private"
+				}
+				rows = append(rows, []string{r.FullName, visibility, r.DefaultBr, r.HTMLURL})
 			}
-			return printAny(app.Cfg.Output, []string{"NAME", "DEFAULT", "URL"}, rows, repos)
+			return printAny(app.Cfg.Output, []string{"NAME", "VISIBILITY", "DEFAULT", "URL"}, rows, repos)
 		},
 	}
 	listCmd.Flags().StringVar(&org, "org", "", "Organization name")
