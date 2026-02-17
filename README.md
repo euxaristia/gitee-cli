@@ -52,6 +52,21 @@ Security behavior:
 - API requests use `Authorization` headers (not token-in-query).
 - `gitee auth login/logout` manages secrets in keychain.
 
+## Implementation Details
+
+### Architecture
+- **CLI Framework**: Built using [Cobra](https://github.com/spf13/cobra), providing a structured and discoverable command hierarchy.
+- **Unified State**: A central `App` struct is initialized at startup, ensuring consistent configuration and API client settings (base URL, timeouts, etc.) across all subcommands.
+
+### Resilience & Retries
+Designed specifically for high reliability over unstable networks:
+- **API Retries**: The internal HTTP client automatically retries idempotent requests (GET, HEAD) up to 3 times with exponential backoff if transient network errors (e.g., connection resets, TLS timeouts) are detected.
+- **Git Wrappers**: Commands like `gitee push` and `gitee pull` wrap the native `git` binary, monitoring stderr for common network failures and automatically retrying the operation.
+
+### Security
+- **Credential Storage**: Uses [go-keyring](https://github.com/zalando/go-keyring) to store access tokens in the system's native secure store (macOS Keychain, Linux Secret Service, or Windows Credential Manager) rather than plaintext files.
+- **Priority**: Tokens are resolved in order: `GITEE_TOKEN` environment variable > OS Keychain > Legacy config file.
+
 ## Examples
 
 ```bash
