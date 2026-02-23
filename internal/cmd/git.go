@@ -27,6 +27,7 @@ func newGitCmd(app *App) *cobra.Command {
 		newGitOperationCmd(app, "commit"),
 		newGitOperationCmd(app, "push"),
 		newGitOperationCmd(app, "pull"),
+		newGitOperationCmd(app, "status"),
 	)
 	return gitCmd
 }

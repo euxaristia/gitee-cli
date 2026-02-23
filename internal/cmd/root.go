@@ -77,6 +77,7 @@ func NewRootCmd() *cobra.Command {
 		newGitShortcutCmd(app, "commit"),
 		newGitShortcutCmd(app, "push"),
 		newGitShortcutCmd(app, "pull"),
+		newGitShortcutCmd(app, "status"),
 		newRepoCmd(app),
 		newIssueCmd(app),
 		newPRCmd(app),
