@@ -91,8 +91,6 @@ func runGitWithRetry(app *App, cmd *cobra.Command, op string, args []string) err
 
 		errText := strings.ToLower(stderrBuf.String() + "\n" + stdoutBuf.String() + "\n" + err.Error())
 		if attempt == attempts || !isTransientGitErr(errText) {
-			_, _ = io.Copy(cmd.OutOrStdout(), &stdoutBuf)
-			_, _ = io.Copy(cmd.ErrOrStderr(), &stderrBuf)
 			return fmt.Errorf("git %s failed: %w", op, err)
 		}
 
