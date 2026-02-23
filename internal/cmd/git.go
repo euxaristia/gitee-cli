@@ -17,40 +17,40 @@ const (
 	gitRetryBaseWait = 1 * time.Second
 )
 
-func newGitCmd(_ *App) *cobra.Command {
+func newGitCmd(app *App) *cobra.Command {
 	gitCmd := &cobra.Command{
 		Use:   "git",
 		Short: "Run git operations with retry for transient network failures",
 	}
 
 	gitCmd.AddCommand(
-		newGitOperationCmd("commit"),
-		newGitOperationCmd("push"),
-		newGitOperationCmd("pull"),
+		newGitOperationCmd(app, "commit"),
+		newGitOperationCmd(app, "push"),
+		newGitOperationCmd(app, "pull"),
 	)
 	return gitCmd
 }
 
-func newGitShortcutCmd(name string) *cobra.Command {
-	cmd := newGitOperationCmd(name)
+func newGitShortcutCmd(app *App, name string) *cobra.Command {
+	cmd := newGitOperationCmd(app, name)
 	cmd.Use = fmt.Sprintf("%s [git args...]", name)
 	return cmd
 }
 
-func newGitOperationCmd(op string) *cobra.Command {
+func newGitOperationCmd(app *App, op string) *cobra.Command {
 	return &cobra.Command{
 		Use:                fmt.Sprintf("%s [git args...]", op),
 		Short:              fmt.Sprintf("Run `git %s`", op),
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runGitWithRetry(cmd, op, args)
+			return runGitWithRetry(app, cmd, op, args)
 		},
 	}
 }
 
-func runGitWithRetry(cmd *cobra.Command, op string, args []string) error {
+func runGitWithRetry(app *App, cmd *cobra.Command, op string, args []string) error {
 	attempts := 1
-	if op == "push" || op == "pull" {
+	if op == "push" || op == "pull" || op == "clone" {
 		attempts = gitRetryAttempts
 	}
 
@@ -58,16 +58,30 @@ func runGitWithRetry(cmd *cobra.Command, op string, args []string) error {
 		var stdoutBuf bytes.Buffer
 		var stderrBuf bytes.Buffer
 
-		gitArgs := append([]string{op}, args...)
+		// Stream to both the user's terminal and our internal buffers for error analysis.
+		multiStdout := io.MultiWriter(cmd.OutOrStdout(), &stdoutBuf)
+		multiStderr := io.MultiWriter(cmd.ErrOrStderr(), &stderrBuf)
+
+		// Inject performance optimizations for long-distance/high-latency connections.
+		// HTTP/1.1 is often more stable than HTTP/2 over trans-Pacific links for Git's pattern.
+		gitArgs := []string{
+			"-c", "protocol.version=2",
+			"-c", "http.version=HTTP/1.1",
+			"-c", "http.postBuffer=524288000",
+		}
+		if app != nil && app.Cfg != nil && len(app.Cfg.GitFlags) > 0 {
+			gitArgs = append(gitArgs, app.Cfg.GitFlags...)
+		}
+		gitArgs = append(gitArgs, op)
+		gitArgs = append(gitArgs, args...)
+
 		c := exec.Command("git", gitArgs...)
 		c.Stdin = os.Stdin
-		c.Stdout = &stdoutBuf
-		c.Stderr = &stderrBuf
+		c.Stdout = multiStdout
+		c.Stderr = multiStderr
 
 		err := c.Run()
 		if err == nil {
-			_, _ = io.Copy(cmd.OutOrStdout(), &stdoutBuf)
-			_, _ = io.Copy(cmd.ErrOrStderr(), &stderrBuf)
 			if attempt > 1 {
 				fmt.Fprintf(cmd.ErrOrStderr(), "gitee: git %s succeeded on retry %d/%d\n", op, attempt, attempts)
 			}
@@ -91,9 +105,12 @@ func runGitWithRetry(cmd *cobra.Command, op string, args []string) error {
 
 func isTransientGitErr(msg string) bool {
 	return strings.Contains(msg, "tls handshake timeout") ||
+		strings.Contains(msg, "gnutls_handshake() failed") ||
 		strings.Contains(msg, "connection reset by peer") ||
 		strings.Contains(msg, "unexpected eof") ||
 		strings.Contains(msg, "remote end hung up unexpectedly") ||
+		strings.Contains(msg, "ssh_exchange_identification: read: connection reset by peer") ||
+		strings.Contains(msg, "kex_exchange_identification: read: connection reset by peer") ||
 		strings.Contains(msg, "operation timed out") ||
 		strings.Contains(msg, "connection timed out") ||
 		strings.Contains(msg, "network is unreachable") ||

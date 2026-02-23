@@ -25,7 +25,7 @@ jobs:
           cache: true
 
       - name: Build
-        run: make build
+        run: go build -o gitee ./cmd/gitee
 
       - name: Test
-        run: make test
+        run: go test ./...

@@ -22,14 +22,17 @@ type Config struct {
 	Aliases    map[string]string `yaml:"aliases"`
 	CurrentOrg string            `yaml:"current_org"`
 	User       string            `yaml:"user"`
+	GitProtocol string           `yaml:"git_protocol"`
+	GitFlags    []string         `yaml:"git_flags"`
 }
 
 func Default() *Config {
 	return &Config{
-		Host:    defaultHost,
-		APIBase: defaultAPIBase,
-		Output:  "table",
-		Aliases: map[string]string{},
+		Host:        defaultHost,
+		APIBase:     defaultAPIBase,
+		Output:      "table",
+		Aliases:     map[string]string{},
+		GitProtocol: "https",
 	}
 }
 
@@ -68,6 +71,12 @@ func Load() (*Config, error) {
 	}
 	if cfg.Aliases == nil {
 		cfg.Aliases = map[string]string{}
+	}
+	if cfg.GitProtocol == "" {
+		cfg.GitProtocol = "https"
+	}
+	if cfg.GitFlags == nil {
+		cfg.GitFlags = []string{}
 	}
 	return cfg, nil
 }

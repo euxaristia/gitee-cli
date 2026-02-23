@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -24,6 +25,8 @@ func newConfigCmd(app *App) *cobra.Command {
 				{"api_base", app.Cfg.APIBase},
 				{"output", app.Cfg.Output},
 				{"editor", app.Cfg.Editor},
+				{"git_protocol", app.Cfg.GitProtocol},
+				{"git_flags", strings.Join(app.Cfg.GitFlags, ",")},
 				{"token", "(managed by keychain; use `gitee auth` commands)"},
 			}
 			output.PrintTable([]string{"KEY", "VALUE"}, rows)
@@ -100,6 +103,10 @@ func getConfigValue(cfg *config.Config, key string) (string, error) {
 		return cfg.Editor, nil
 	case "current_org":
 		return cfg.CurrentOrg, nil
+	case "git_protocol":
+		return cfg.GitProtocol, nil
+	case "git_flags":
+		return strings.Join(cfg.GitFlags, ","), nil
 	default:
 		return "", fmt.Errorf("unknown key: %s", key)
 	}
@@ -119,6 +126,14 @@ func setConfigValue(cfg *config.Config, key, value string) error {
 		cfg.Editor = value
 	case "current_org":
 		cfg.CurrentOrg = value
+	case "git_protocol":
+		cfg.GitProtocol = value
+	case "git_flags":
+		if value == "" {
+			cfg.GitFlags = []string{}
+		} else {
+			cfg.GitFlags = strings.Split(value, ",")
+		}
 	default:
 		return fmt.Errorf("unknown key: %s", key)
 	}

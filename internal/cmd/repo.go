@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -96,6 +95,9 @@ func newRepoCmd(app *App) *cobra.Command {
 	createCmd.Flags().BoolVar(&private, "private", false, "Create private repository")
 
 	var dest string
+	var depth int
+	var recursive bool
+	var useSSH bool
 	cloneCmd := &cobra.Command{
 		Use:   "clone <owner/repo>",
 		Short: "Clone repository via git",
@@ -105,18 +107,36 @@ func newRepoCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			url := fmt.Sprintf("https://gitee.com/%s/%s.git", owner, repo)
-			gitArgs := []string{"clone", url}
+
+			protocol := app.Cfg.GitProtocol
+			if useSSH {
+				protocol = "ssh"
+			}
+
+			var url string
+			if protocol == "ssh" {
+				url = fmt.Sprintf("git@gitee.com:%s/%s.git", owner, repo)
+			} else {
+				url = fmt.Sprintf("https://gitee.com/%s/%s.git", owner, repo)
+			}
+
+			gitArgs := []string{url}
+			if depth > 0 {
+				gitArgs = append(gitArgs, "--depth", fmt.Sprintf("%d", depth))
+			}
+			if recursive {
+				gitArgs = append(gitArgs, "--recursive")
+			}
 			if dest != "" {
 				gitArgs = append(gitArgs, dest)
 			}
-			c := exec.Command("git", gitArgs...)
-			c.Stdout = cmd.OutOrStdout()
-			c.Stderr = cmd.ErrOrStderr()
-			return c.Run()
+			return runGitWithRetry(app, cmd, "clone", gitArgs)
 		},
 	}
 	cloneCmd.Flags().StringVar(&dest, "dest", "", "Destination directory")
+	cloneCmd.Flags().IntVar(&depth, "depth", 0, "Create a shallow clone with a history truncated to the specified number of commits")
+	cloneCmd.Flags().BoolVar(&recursive, "recursive", false, "After the clone is created, initialize and clone submodules within based on their default settings")
+	cloneCmd.Flags().BoolVar(&useSSH, "ssh", false, "Use SSH protocol for cloning")
 
 	repoCmd.AddCommand(listCmd, viewCmd, createCmd, cloneCmd)
 	return repoCmd
