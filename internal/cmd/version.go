@@ -10,7 +10,6 @@ import (
 )
 
 var version = "0.1.0"
-var commit = "dev"
 
 var asciiArt = []string{
 	" dP\"\"b8 88 888888 888888 888888           dP\"\"b8 88     88 ",
@@ -19,20 +18,9 @@ var asciiArt = []string{
 	" YboodP 88   88   888888 888888           YboodP 88ood8 88 ",
 }
 
-func shortCommit() string {
-	c := strings.TrimSpace(commit)
-	if c == "" {
-		return "dev"
-	}
-	if len(c) > 7 {
-		return c[:7]
-	}
-	return c
-}
-
 func printVersionBanner(w io.Writer) {
 	lines := append([]string{}, asciiArt...)
-	lines = append(lines, "", fmt.Sprintf("Version: %s", version), fmt.Sprintf("Commit: %s", shortCommit()), "© 2026 euxaristia")
+	lines = append(lines, "", fmt.Sprintf("Version: %s", version), "© 2026 euxaristia")
 
 	width := 0
 	for _, l := range lines {
