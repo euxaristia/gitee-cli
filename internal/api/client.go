@@ -259,6 +259,20 @@ func (c *Client) ListIssues(ctx context.Context, owner, repo, state string, page
 	return issues, nil
 }
 
+func (c *Client) ListAllIssues(ctx context.Context, filter, state string, page, perPage int) ([]Issue, error) {
+	query := map[string]string{
+		"filter":   filter,
+		"state":    state,
+		"page":     fmt.Sprintf("%d", page),
+		"per_page": fmt.Sprintf("%d", perPage),
+	}
+	var issues []Issue
+	if err := c.Request(ctx, http.MethodGet, "issues", query, nil, &issues); err != nil {
+		return nil, err
+	}
+	return issues, nil
+}
+
 func (c *Client) GetIssue(ctx context.Context, owner, repo, number string) (*Issue, error) {
 	var issue Issue
 	if err := c.Request(ctx, http.MethodGet, fmt.Sprintf("repos/%s/%s/issues/%s", owner, repo, number), nil, nil, &issue); err != nil {

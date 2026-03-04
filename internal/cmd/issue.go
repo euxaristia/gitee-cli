@@ -151,7 +151,44 @@ func newIssueCmd(app *App) *cobra.Command {
 	reopenCmd.Flags().StringVar(&repo, "repo", "", "Repository owner/name")
 	_ = reopenCmd.MarkFlagRequired("repo")
 
-	issueCmd.AddCommand(listCmd, viewCmd, createCmd, commentCmd, closeCmd, reopenCmd)
+	statusCmd := &cobra.Command{
+		Use:   "status",
+		Short: "Show a summary of issues relevant to you",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := ensureToken(app); err != nil {
+				return err
+			}
+
+			fmt.Println("Issues assigned to you")
+			assigned, err := app.Client.ListAllIssues(app.Ctx, "assigned", "open", 1, 10)
+			if err != nil {
+				return err
+			}
+			if len(assigned) == 0 {
+				fmt.Println("  None")
+			} else {
+				for _, i := range assigned {
+					fmt.Printf("  #%s  %s\n", i.Number, i.Title)
+				}
+			}
+
+			fmt.Println("\nIssues created by you")
+			created, err := app.Client.ListAllIssues(app.Ctx, "created", "open", 1, 10)
+			if err != nil {
+				return err
+			}
+			if len(created) == 0 {
+				fmt.Println("  None")
+			} else {
+				for _, i := range created {
+					fmt.Printf("  #%s  %s\n", i.Number, i.Title)
+				}
+			}
+			return nil
+		},
+	}
+
+	issueCmd.AddCommand(listCmd, viewCmd, createCmd, commentCmd, closeCmd, reopenCmd, statusCmd)
 	return issueCmd
 }
 
