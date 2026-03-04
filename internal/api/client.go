@@ -268,18 +268,18 @@ func (c *Client) GetIssue(ctx context.Context, owner, repo, number string) (*Iss
 }
 
 func (c *Client) CreateIssue(ctx context.Context, owner, repo, title, body string) (*Issue, error) {
-	payload := map[string]any{"title": title, "body": body}
+	payload := map[string]any{"repo": repo, "title": title, "body": body}
 	var issue Issue
-	if err := c.Request(ctx, http.MethodPost, fmt.Sprintf("repos/%s/%s/issues", owner, repo), nil, payload, &issue); err != nil {
+	if err := c.Request(ctx, http.MethodPost, fmt.Sprintf("repos/%s/issues", owner), nil, payload, &issue); err != nil {
 		return nil, err
 	}
 	return &issue, nil
 }
 
 func (c *Client) UpdateIssueState(ctx context.Context, owner, repo, number, state string) (*Issue, error) {
-	payload := map[string]any{"state": state}
+	payload := map[string]any{"repo": repo, "state": state}
 	var issue Issue
-	if err := c.Request(ctx, http.MethodPatch, fmt.Sprintf("repos/%s/%s/issues/%s", owner, repo, number), nil, payload, &issue); err != nil {
+	if err := c.Request(ctx, http.MethodPatch, fmt.Sprintf("repos/%s/issues/%s", owner, number), nil, payload, &issue); err != nil {
 		return nil, err
 	}
 	return &issue, nil
