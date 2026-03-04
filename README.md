@@ -18,10 +18,10 @@ A full-featured Gitee CLI inspired by `gh` for GitHub.
 ## Install
 
 ```bash
-make install
+go install ./cmd/gitee
 ```
 
-This installs to `~/.local/bin/gitee` by default.
+This installs the `gitee` binary to your `$GOPATH/bin` (usually `~/go/bin`).
 
 ## Quick Start
 
