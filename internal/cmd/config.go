@@ -27,7 +27,7 @@ func newConfigCmd(app *App) *cobra.Command {
 				{"editor", app.Cfg.Editor},
 				{"git_protocol", app.Cfg.GitProtocol},
 				{"git_flags", strings.Join(app.Cfg.GitFlags, ",")},
-				{"token", "(managed by keychain; use `gitee auth` commands)"},
+				{"token", "(managed by keychain; use `gt auth` commands)"},
 			}
 			output.PrintTable([]string{"KEY", "VALUE"}, rows)
 			return nil
@@ -96,7 +96,7 @@ func getConfigValue(cfg *config.Config, key string) (string, error) {
 	case "api_base":
 		return cfg.APIBase, nil
 	case "token":
-		return "(managed by keychain; use `gitee auth token`)", nil
+		return "(managed by keychain; use `gt auth token`)", nil
 	case "output":
 		return cfg.Output, nil
 	case "editor":
@@ -119,7 +119,7 @@ func setConfigValue(cfg *config.Config, key, value string) error {
 	case "api_base":
 		cfg.APIBase = value
 	case "token":
-		return fmt.Errorf("token is managed by keychain; use `gitee auth login/logout`")
+		return fmt.Errorf("token is managed by keychain; use `gt auth login/logout`")
 	case "output":
 		cfg.Output = value
 	case "editor":

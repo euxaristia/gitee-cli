@@ -1,6 +1,8 @@
-# gitee-cli
+# gitee-cli (`gt`)
 
 A full-featured Gitee CLI inspired by `gh` for GitHub.
+
+The primary command is `gt` (short for Gitee), with `gitee` available as an alias.
 
 ## Features
 
@@ -18,18 +20,24 @@ A full-featured Gitee CLI inspired by `gh` for GitHub.
 ## Install
 
 ```bash
-go install ./cmd/gitee
+go install ./cmd/gt
 ```
 
-This installs the `gitee` binary to your `$GOPATH/bin` (usually `~/go/bin`).
+This installs the `gt` binary to your `$GOPATH/bin` (usually `~/go/bin`).
+
+To also have `gitee` available as an alias, create a symlink:
+
+```bash
+ln -s "$(which gt)" "$(dirname $(which gt))/gitee"
+```
 
 ## Quick Start
 
 ```bash
-gitee auth login --token <PAT>
-gitee repo list
-gitee issue list --repo owner/repo
-gitee pr create --repo owner/repo --title "feat: ..." --head feature --base master --body "..."
+gt auth login --token <PAT>
+gt repo list
+gt issue list --repo owner/repo
+gt pr create --repo owner/repo --title "feat: ..." --head feature --base master --body "..."
 ```
 
 ## Authentication
@@ -43,14 +51,14 @@ The CLI uses either:
 Generate a personal access token from Gitee account settings and run:
 
 ```bash
-gitee auth login
+gt auth login
 ```
 
 Security behavior:
 
 - Interactive token input is hidden (no terminal echo).
 - API requests use `Authorization` headers (not token-in-query).
-- `gitee auth login/logout` manages secrets in keychain.
+- `gt auth login/logout` manages secrets in keychain.
 
 ## Implementation Details
 
@@ -61,7 +69,7 @@ Security behavior:
 ### Resilience & Retries
 Designed specifically for high reliability over unstable networks:
 - **API Retries**: The internal HTTP client automatically retries idempotent requests (GET, HEAD) up to 3 times with exponential backoff if transient network errors (e.g., connection resets, TLS timeouts) are detected.
-- **Git Wrappers**: Commands like `gitee push` and `gitee pull` wrap the native `git` binary, monitoring stderr for common network failures and automatically retrying the operation.
+- **Git Wrappers**: Commands like `gt push` and `gt pull` wrap the native `git` binary, monitoring stderr for common network failures and automatically retrying the operation.
 
 ### Security
 - **Credential Storage**: Uses [go-keyring](https://github.com/zalando/go-keyring) to store access tokens in the system's native secure store (macOS Keychain, Linux Secret Service, or Windows Credential Manager) rather than plaintext files.
@@ -71,37 +79,37 @@ Designed specifically for high reliability over unstable networks:
 
 ```bash
 # Repositories
-gitee repo list --org my-org --visibility public
-gitee repo view owner/repo
-gitee repo create --name new-repo --description "demo" --private
+gt repo list --org my-org --visibility public
+gt repo view owner/repo
+gt repo create --name new-repo --description "demo" --private
 
 # Git wrappers
-gitee push origin master
-gitee pull --rebase
-gitee commit -m "feat: improve retry behavior"
+gt push origin master
+gt pull --rebase
+gt commit -m "feat: improve retry behavior"
 
 # Issues
-gitee issue create --repo owner/repo --title "Bug report" --body "details"
-gitee issue comment --repo owner/repo 123 --body "working on this"
+gt issue create --repo owner/repo --title "Bug report" --body "details"
+gt issue comment --repo owner/repo 123 --body "working on this"
 
 # Pull requests
-gitee pr list --repo owner/repo --state open
-gitee pr merge --repo owner/repo 45 --message "merge PR #45"
+gt pr list --repo owner/repo --state open
+gt pr merge --repo owner/repo 45 --message "merge PR #45"
 
 # Releases
-gitee release create --repo owner/repo --tag v1.2.3 --name "v1.2.3" --body "changelog"
+gt release create --repo owner/repo --tag v1.2.3 --name "v1.2.3" --body "changelog"
 
 # Raw API
-gitee api repos/owner/repo -X GET
-gitee api repos/owner/repo/issues -X POST -F title=hello -F body=world
+gt api repos/owner/repo -X GET
+gt api repos/owner/repo/issues -X POST -F title=hello -F body=world
 ```
 
 ## Config
 
 ```bash
-gitee config list
-gitee config set output json
-gitee config get api_base
+gt config list
+gt config set output json
+gt config get api_base
 ```
 
 ## Notes

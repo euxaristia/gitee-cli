@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewCompletionCmd(t *testing.T) {
-	root := &cobra.Command{Use: "gitee"}
+	root := &cobra.Command{Use: "gt"}
 
 	shells := []string{"bash", "zsh", "fish", "powershell"}
 	for _, shell := range shells {
@@ -25,7 +25,7 @@ func TestNewCompletionCmd(t *testing.T) {
 }
 
 func TestNewCompletionCmd_Unsupported(t *testing.T) {
-	root := &cobra.Command{Use: "gitee"}
+	root := &cobra.Command{Use: "gt"}
 	cmd := newCompletionCmd(root)
 	cmd.SetArgs([]string{"elvish"})
 	if err := cmd.Execute(); err == nil {

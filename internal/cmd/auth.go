@@ -88,16 +88,31 @@ func newAuthCmd(app *App) *cobra.Command {
 		Use:   "status",
 		Short: "Show auth status",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			w := cmd.OutOrStdout()
+			host := app.Cfg.Host
+			if host == "" {
+				host = "https://gitee.com"
+			}
+			fmt.Fprintln(w, host)
+
 			effectiveToken := app.ActiveToken
 			if effectiveToken == "" {
-				fmt.Fprintln(os.Stdout, "Not authenticated")
+				fmt.Fprintln(w, "  Not authenticated")
+				fmt.Fprintf(w, "  Run `gt auth login` or set GITEE_TOKEN to authenticate.\n")
 				return nil
 			}
+
+			source := tokenSource(app)
 			user, err := app.Client.CurrentUser(app.Ctx)
 			if err != nil {
+				fmt.Fprintf(w, "  X Failed to verify token (%s)\n", source)
 				return err
 			}
-			fmt.Fprintf(os.Stdout, "Authenticated as %s (%s)\n", user.Login, user.Name)
+
+			fmt.Fprintf(w, "  ✓ Logged in to %s account %s (%s)\n", host, user.Login, source)
+			fmt.Fprintf(w, "    - Active account: true\n")
+			fmt.Fprintf(w, "    - Git operations protocol: %s\n", app.Cfg.GitProtocol)
+			fmt.Fprintf(w, "    - Token: %s\n", maskToken(effectiveToken))
 			return nil
 		},
 	}
@@ -194,4 +209,27 @@ func newAuthCmd(app *App) *cobra.Command {
 
 func clientFrom(app *App, token string) *api.Client {
 	return api.New(app.Cfg.APIBase, token)
+}
+
+// tokenSource returns a human-readable label for where the active token comes from.
+func tokenSource(app *App) string {
+	if os.Getenv("GITEE_TOKEN") != "" {
+		return "GITEE_TOKEN"
+	}
+	stored, err := auth.LoadToken()
+	if err == nil && stored != "" {
+		return "keyring"
+	}
+	if app.Cfg.Token != "" {
+		return "config file"
+	}
+	return "unknown"
+}
+
+// maskToken returns a masked version of the token, showing only the first 4 characters.
+func maskToken(token string) string {
+	if len(token) <= 4 {
+		return strings.Repeat("*", len(token))
+	}
+	return token[:4] + strings.Repeat("*", len(token)-4)
 }

@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	keyring "github.com/zalando/go-keyring"
 
 	"github.com/euxaristia/gitee-cli/internal/api"
+	"github.com/euxaristia/gitee-cli/internal/auth"
 	"github.com/euxaristia/gitee-cli/internal/config"
 )
 
@@ -62,19 +65,96 @@ func TestAuthStatus_WithToken(t *testing.T) {
 	srv, app := testServer()
 	defer srv.Close()
 
+	var buf bytes.Buffer
 	cmd := newAuthCmd(app)
+	cmd.SetOut(&buf)
 	cmd.SetArgs([]string{"status"})
 	if err := cmd.Execute(); err != nil {
 		t.Errorf("auth status error = %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "https://gitee.com") {
+		t.Errorf("expected host in output, got %q", out)
+	}
+	if !strings.Contains(out, "✓ Logged in") {
+		t.Errorf("expected checkmark logged in, got %q", out)
+	}
+	if !strings.Contains(out, "testuser") {
+		t.Errorf("expected username in output, got %q", out)
+	}
+	if !strings.Contains(out, "Active account: true") {
+		t.Errorf("expected active account, got %q", out)
+	}
+	if !strings.Contains(out, "Git operations protocol: https") {
+		t.Errorf("expected git protocol, got %q", out)
+	}
+	if !strings.Contains(out, "Token:") {
+		t.Errorf("expected masked token, got %q", out)
+	}
+	// Token should be masked — full token must not appear
+	if strings.Contains(out, "test-token") {
+		t.Errorf("full token should not appear in output, got %q", out)
 	}
 }
 
 func TestAuthStatus_NoToken(t *testing.T) {
 	app := testAppNoToken()
+	var buf bytes.Buffer
 	cmd := newAuthCmd(app)
+	cmd.SetOut(&buf)
 	cmd.SetArgs([]string{"status"})
 	if err := cmd.Execute(); err != nil {
 		t.Errorf("auth status no token error = %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "https://gitee.com") {
+		t.Errorf("expected host in output, got %q", out)
+	}
+	if !strings.Contains(out, "Not authenticated") {
+		t.Errorf("expected not authenticated message, got %q", out)
+	}
+}
+
+func TestAuthStatus_WithEnvToken(t *testing.T) {
+	srv, app := testServer()
+	defer srv.Close()
+
+	t.Setenv("GITEE_TOKEN", "env-token-value")
+
+	var buf bytes.Buffer
+	cmd := newAuthCmd(app)
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"status"})
+	if err := cmd.Execute(); err != nil {
+		t.Errorf("auth status with env token error = %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "GITEE_TOKEN") {
+		t.Errorf("expected GITEE_TOKEN source, got %q", out)
+	}
+}
+
+func TestAuthStatus_WithKeychainToken(t *testing.T) {
+	srv, app := testServer()
+	defer srv.Close()
+
+	t.Setenv("GITEE_TOKEN", "")
+	// Save a token to keyring so tokenSource returns "keyring"
+	if err := auth.SaveToken("keyring-test-token"); err != nil {
+		t.Fatalf("failed to save keyring token: %v", err)
+	}
+	defer auth.DeleteToken()
+
+	var buf bytes.Buffer
+	cmd := newAuthCmd(app)
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"status"})
+	if err := cmd.Execute(); err != nil {
+		t.Errorf("auth status with keychain error = %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "keyring") {
+		t.Errorf("expected keyring source, got %q", out)
 	}
 }
 
@@ -270,10 +350,16 @@ func TestAuthGitCredential_Get_NoUser_APIError(t *testing.T) {
 
 func TestAuthStatus_APIError(t *testing.T) {
 	app := testErrorApp()
+	var buf bytes.Buffer
 	cmd := newAuthCmd(app)
+	cmd.SetOut(&buf)
 	cmd.SetArgs([]string{"status"})
 	if err := cmd.Execute(); err == nil {
 		t.Error("auth status with API error expected error")
+	}
+	out := buf.String()
+	if !strings.Contains(out, "Failed to verify token") {
+		t.Errorf("expected failure message, got %q", out)
 	}
 }
 
@@ -296,5 +382,69 @@ func TestEnsureToken_WithActiveToken(t *testing.T) {
 	}
 	if err := ensureToken(app); err != nil {
 		t.Errorf("ensureToken with active token error = %v", err)
+	}
+}
+
+func TestMaskToken(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"", ""},
+		{"ab", "**"},
+		{"abcd", "****"},
+		{"abcde", "abcd*"},
+		{"abcdefghij", "abcd******"},
+		{"gho_ABCDEFGHIJKLMNOPQRSTUVWXYZab", "gho_****************************"},
+	}
+	for _, tt := range tests {
+		got := maskToken(tt.input)
+		if got != tt.want {
+			t.Errorf("maskToken(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestTokenSource_Env(t *testing.T) {
+	t.Setenv("GITEE_TOKEN", "env-token")
+	app := &App{Cfg: config.Default()}
+	if got := tokenSource(app); got != "GITEE_TOKEN" {
+		t.Errorf("tokenSource = %q, want GITEE_TOKEN", got)
+	}
+}
+
+func TestTokenSource_Keyring(t *testing.T) {
+	t.Setenv("GITEE_TOKEN", "")
+	if err := auth.SaveToken("keyring-token"); err != nil {
+		t.Fatalf("failed to save keyring token: %v", err)
+	}
+	defer auth.DeleteToken()
+
+	app := &App{Cfg: config.Default()}
+	if got := tokenSource(app); got != "keyring" {
+		t.Errorf("tokenSource = %q, want keyring", got)
+	}
+}
+
+func TestTokenSource_ConfigFile(t *testing.T) {
+	t.Setenv("GITEE_TOKEN", "")
+	// Make sure keyring is empty
+	auth.DeleteToken()
+
+	cfg := config.Default()
+	cfg.Token = "legacy-token"
+	app := &App{Cfg: cfg}
+	if got := tokenSource(app); got != "config file" {
+		t.Errorf("tokenSource = %q, want config file", got)
+	}
+}
+
+func TestTokenSource_Unknown(t *testing.T) {
+	t.Setenv("GITEE_TOKEN", "")
+	auth.DeleteToken()
+
+	app := &App{Cfg: config.Default()}
+	if got := tokenSource(app); got != "unknown" {
+		t.Errorf("tokenSource = %q, want unknown", got)
 	}
 }

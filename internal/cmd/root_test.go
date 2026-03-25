@@ -9,8 +9,8 @@ import (
 
 func TestNewRootCmd(t *testing.T) {
 	cmd := NewRootCmd()
-	if cmd.Use != "gitee" {
-		t.Errorf("root cmd Use = %q, want gitee", cmd.Use)
+	if cmd.Use != "gt" {
+		t.Errorf("root cmd Use = %q, want gt", cmd.Use)
 	}
 	if !cmd.SilenceUsage {
 		t.Error("root cmd should silence usage")

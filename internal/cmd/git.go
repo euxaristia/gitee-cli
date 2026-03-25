@@ -84,7 +84,7 @@ func runGitWithRetry(app *App, cmd *cobra.Command, op string, args []string) err
 		err := c.Run()
 		if err == nil {
 			if attempt > 1 {
-				fmt.Fprintf(cmd.ErrOrStderr(), "gitee: git %s succeeded on retry %d/%d\n", op, attempt, attempts)
+				fmt.Fprintf(cmd.ErrOrStderr(), "gt: git %s succeeded on retry %d/%d\n", op, attempt, attempts)
 			}
 			return nil
 		}
@@ -95,7 +95,7 @@ func runGitWithRetry(app *App, cmd *cobra.Command, op string, args []string) err
 		}
 
 		wait := time.Duration(attempt) * gitRetryBaseWait
-		fmt.Fprintf(cmd.ErrOrStderr(), "gitee: transient failure running git %s (attempt %d/%d), retrying in %s\n", op, attempt, attempts, wait)
+		fmt.Fprintf(cmd.ErrOrStderr(), "gt: transient failure running git %s (attempt %d/%d), retrying in %s\n", op, attempt, attempts, wait)
 		time.Sleep(wait)
 	}
 

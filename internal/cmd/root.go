@@ -25,8 +25,9 @@ func NewRootCmd() *cobra.Command {
 	var showVersion bool
 
 	root := &cobra.Command{
-		Use:   "gitee",
-		Short: "A full-featured CLI for Gitee",
+		Use:     "gt",
+		Aliases: []string{"gitee"},
+		Short:   "A full-featured CLI for Gitee",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
 				printVersionBanner(cmd.OutOrStdout())
@@ -98,7 +99,7 @@ func ensureToken(app *App) error {
 		app.ActiveToken = env
 	}
 	if app.ActiveToken == "" {
-		return fmt.Errorf("no token configured: run `gitee auth login` or set GITEE_TOKEN")
+		return fmt.Errorf("no token configured: run `gt auth login` or set GITEE_TOKEN")
 	}
 	app.Client = api.New(app.Cfg.APIBase, app.ActiveToken)
 	return nil

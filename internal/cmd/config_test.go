@@ -18,7 +18,7 @@ func TestGetConfigValue(t *testing.T) {
 	}{
 		{"host", cfg.Host},
 		{"api_base", cfg.APIBase},
-		{"token", "(managed by keychain; use `gitee auth token`)"},
+		{"token", "(managed by keychain; use `gt auth token`)"},
 		{"output", cfg.Output},
 		{"editor", "vim"},
 		{"current_org", "myorg"},
