@@ -14,16 +14,16 @@ const (
 )
 
 type Config struct {
-	Host       string            `yaml:"host"`
-	APIBase    string            `yaml:"api_base"`
-	Token      string            `yaml:"token"`
-	Output     string            `yaml:"output"`
-	Editor     string            `yaml:"editor"`
-	Aliases    map[string]string `yaml:"aliases"`
-	CurrentOrg string            `yaml:"current_org"`
-	User       string            `yaml:"user"`
-	GitProtocol string           `yaml:"git_protocol"`
-	GitFlags    []string         `yaml:"git_flags"`
+	Host        string            `yaml:"host"`
+	APIBase     string            `yaml:"api_base"`
+	Token       string            `yaml:"token"`
+	Output      string            `yaml:"output"`
+	Editor      string            `yaml:"editor"`
+	Aliases     map[string]string `yaml:"aliases"`
+	CurrentOrg  string            `yaml:"current_org"`
+	User        string            `yaml:"user"`
+	GitProtocol string            `yaml:"git_protocol"`
+	GitFlags    []string          `yaml:"git_flags"`
 }
 
 func Default() *Config {

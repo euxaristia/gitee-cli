@@ -127,4 +127,3 @@ func TestNewGitOperationCmd(t *testing.T) {
 		t.Error("newGitOperationCmd should disable flag parsing")
 	}
 }
-
