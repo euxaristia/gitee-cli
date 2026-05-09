@@ -304,11 +304,14 @@ func (c *Client) CreateIssueComment(ctx context.Context, owner, repo, number, bo
 	return c.Request(ctx, http.MethodPost, fmt.Sprintf("repos/%s/%s/issues/%s/comments", owner, repo, number), nil, payload, nil)
 }
 
-func (c *Client) ListPRs(ctx context.Context, owner, repo, state string, page, perPage int) ([]PullRequest, error) {
+func (c *Client) ListPRs(ctx context.Context, owner, repo, state, head string, page, perPage int) ([]PullRequest, error) {
 	query := map[string]string{
 		"state":    state,
 		"page":     fmt.Sprintf("%d", page),
 		"per_page": fmt.Sprintf("%d", perPage),
+	}
+	if head != "" {
+		query["head"] = head
 	}
 	var prs []PullRequest
 	if err := c.Request(ctx, http.MethodGet, fmt.Sprintf("repos/%s/%s/pulls", owner, repo), query, nil, &prs); err != nil {

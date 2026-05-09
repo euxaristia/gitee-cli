@@ -19,6 +19,12 @@ func newPRCmd(app *App) *cobra.Command {
 		Use:   "list",
 		Short: "List pull requests",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if repo == "" {
+				repo, _ = util.CurrentRepo()
+			}
+			if repo == "" {
+				return fmt.Errorf("--repo is required or must be run inside a git repository")
+			}
 			if err := ensureToken(app); err != nil {
 				return err
 			}
@@ -26,7 +32,7 @@ func newPRCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			prs, err := app.Client.ListPRs(app.Ctx, owner, name, state, page, perPage)
+			prs, err := app.Client.ListPRs(app.Ctx, owner, name, state, "", page, perPage)
 			if err != nil {
 				return err
 			}
@@ -41,16 +47,17 @@ func newPRCmd(app *App) *cobra.Command {
 	listCmd.Flags().StringVar(&state, "state", "open", "open|closed|all")
 	listCmd.Flags().IntVar(&page, "page", 1, "Page number")
 	listCmd.Flags().IntVar(&perPage, "per-page", 30, "Page size")
-	_ = listCmd.MarkFlagRequired("repo")
 
 	viewCmd := &cobra.Command{
-		Use:   "view <number>",
+		Use:   "view [<number>]",
 		Short: "View pull request",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			num, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return err
+			if repo == "" {
+				repo, _ = util.CurrentRepo()
+			}
+			if repo == "" {
+				return fmt.Errorf("--repo is required or must be run inside a git repository")
 			}
 			if err := ensureToken(app); err != nil {
 				return err
@@ -59,6 +66,35 @@ func newPRCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			var num int64
+			if len(args) == 1 {
+				n, err := strconv.ParseInt(args[0], 10, 64)
+				if err != nil {
+					return err
+				}
+				num = n
+			} else {
+				branch, err := util.CurrentBranch()
+				if err != nil {
+					return fmt.Errorf("could not determine current branch: %w", err)
+				}
+				prs, err := app.Client.ListPRs(app.Ctx, owner, name, "open", owner+":"+branch, 1, 30)
+				if err != nil {
+					return err
+				}
+				if len(prs) == 0 {
+					prs, err = app.Client.ListPRs(app.Ctx, owner, name, "open", branch, 1, 30)
+					if err != nil {
+						return err
+					}
+					if len(prs) == 0 {
+						return fmt.Errorf("no open pull requests found for branch %s", branch)
+					}
+				}
+				num = prs[0].Number
+			}
+
 			pr, err := app.Client.GetPR(app.Ctx, owner, name, num)
 			if err != nil {
 				return err
@@ -72,7 +108,6 @@ func newPRCmd(app *App) *cobra.Command {
 		},
 	}
 	viewCmd.Flags().StringVar(&repo, "repo", "", "Repository owner/name")
-	_ = viewCmd.MarkFlagRequired("repo")
 
 	var title, body, head, base string
 	createCmd := &cobra.Command{
@@ -81,6 +116,12 @@ func newPRCmd(app *App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if title == "" || head == "" || base == "" {
 				return fmt.Errorf("--title, --head and --base are required")
+			}
+			if repo == "" {
+				repo, _ = util.CurrentRepo()
+			}
+			if repo == "" {
+				return fmt.Errorf("--repo is required or must be run inside a git repository")
 			}
 			if err := ensureToken(app); err != nil {
 				return err
@@ -105,7 +146,6 @@ func newPRCmd(app *App) *cobra.Command {
 	createCmd.Flags().StringVar(&body, "body", "", "PR body")
 	createCmd.Flags().StringVar(&head, "head", "", "Head branch")
 	createCmd.Flags().StringVar(&base, "base", "", "Base branch")
-	_ = createCmd.MarkFlagRequired("repo")
 
 	var mergeTitle string
 	mergeCmd := &cobra.Command{
@@ -116,6 +156,12 @@ func newPRCmd(app *App) *cobra.Command {
 			num, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return err
+			}
+			if repo == "" {
+				repo, _ = util.CurrentRepo()
+			}
+			if repo == "" {
+				return fmt.Errorf("--repo is required or must be run inside a git repository")
 			}
 			if err := ensureToken(app); err != nil {
 				return err
@@ -133,7 +179,6 @@ func newPRCmd(app *App) *cobra.Command {
 	}
 	mergeCmd.Flags().StringVar(&repo, "repo", "", "Repository owner/name")
 	mergeCmd.Flags().StringVar(&mergeTitle, "message", "", "Merge message")
-	_ = mergeCmd.MarkFlagRequired("repo")
 
 	closeCmd := &cobra.Command{
 		Use:   "close <number>",
@@ -143,6 +188,12 @@ func newPRCmd(app *App) *cobra.Command {
 			num, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return err
+			}
+			if repo == "" {
+				repo, _ = util.CurrentRepo()
+			}
+			if repo == "" {
+				return fmt.Errorf("--repo is required or must be run inside a git repository")
 			}
 			if err := ensureToken(app); err != nil {
 				return err
@@ -160,7 +211,6 @@ func newPRCmd(app *App) *cobra.Command {
 		},
 	}
 	closeCmd.Flags().StringVar(&repo, "repo", "", "Repository owner/name")
-	_ = closeCmd.MarkFlagRequired("repo")
 
 	commentCmd := &cobra.Command{
 		Use:   "comment <number>",
@@ -173,6 +223,12 @@ func newPRCmd(app *App) *cobra.Command {
 			}
 			if body == "" {
 				return fmt.Errorf("--body is required")
+			}
+			if repo == "" {
+				repo, _ = util.CurrentRepo()
+			}
+			if repo == "" {
+				return fmt.Errorf("--repo is required or must be run inside a git repository")
 			}
 			if err := ensureToken(app); err != nil {
 				return err
@@ -190,7 +246,6 @@ func newPRCmd(app *App) *cobra.Command {
 	}
 	commentCmd.Flags().StringVar(&repo, "repo", "", "Repository owner/name")
 	commentCmd.Flags().StringVar(&body, "body", "", "Comment body")
-	_ = commentCmd.MarkFlagRequired("repo")
 
 	prCmd.AddCommand(listCmd, viewCmd, createCmd, mergeCmd, closeCmd, commentCmd)
 	return prCmd
