@@ -181,6 +181,12 @@ type Issue struct {
 	User    User   `json:"user"`
 }
 
+type PRHead struct {
+	Label string `json:"label"`
+	Ref   string `json:"ref"`
+	SHA   string `json:"sha"`
+}
+
 type PullRequest struct {
 	ID      int64  `json:"id"`
 	Number  int64  `json:"number"`
@@ -188,6 +194,8 @@ type PullRequest struct {
 	State   string `json:"state"`
 	HTMLURL string `json:"html_url"`
 	User    User   `json:"user"`
+	Head    PRHead `json:"head"`
+	Base    PRHead `json:"base"`
 }
 
 type Release struct {

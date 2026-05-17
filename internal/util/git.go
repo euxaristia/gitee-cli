@@ -6,9 +6,24 @@ import (
 	"strings"
 )
 
+// upstreamRemote returns the remote name for the current branch's upstream,
+// falling back to "origin".
+func upstreamRemote() string {
+	out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}").Output()
+	if err != nil {
+		return "origin"
+	}
+	s := strings.TrimSpace(string(out))
+	if i := strings.Index(s, "/"); i != -1 {
+		return s[:i]
+	}
+	return "origin"
+}
+
 // CurrentRepo returns the owner/name of the repository for the current directory.
 func CurrentRepo() (string, error) {
-	out, err := exec.Command("git", "config", "--get", "remote.origin.url").Output()
+	remote := upstreamRemote()
+	out, err := exec.Command("git", "config", "--get", "remote."+remote+".url").Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get git remote url: %w", err)
 	}
@@ -16,20 +31,21 @@ func CurrentRepo() (string, error) {
 	urlStr = strings.TrimSuffix(urlStr, ".git")
 	urlStr = strings.TrimSuffix(urlStr, "/")
 
-	// git@gitee.com:owner/repo
-	if strings.HasPrefix(urlStr, "git@") {
-		parts := strings.Split(urlStr, ":")
-		if len(parts) == 2 {
-			return parts[1], nil
-		}
+	// Strip protocol and user prefix for any URL scheme (git@, ssh://, http(s)://)
+	if i := strings.Index(urlStr, "@"); i != -1 {
+		urlStr = urlStr[i+1:]
+	} else {
+		urlStr = strings.TrimPrefix(urlStr, "http://")
+		urlStr = strings.TrimPrefix(urlStr, "https://")
+		urlStr = strings.TrimPrefix(urlStr, "ssh://")
 	}
 
-	// https://gitee.com/owner/repo
-	if strings.HasPrefix(urlStr, "http://") || strings.HasPrefix(urlStr, "https://") {
-		parts := strings.Split(urlStr, "/")
-		if len(parts) >= 2 {
-			return parts[len(parts)-2] + "/" + parts[len(parts)-1], nil
-		}
+	// Extract last two path segments (owner/repo).
+	parts := strings.FieldsFunc(urlStr, func(r rune) bool {
+		return r == '/' || r == ':'
+	})
+	if len(parts) >= 2 {
+		return parts[len(parts)-2] + "/" + parts[len(parts)-1], nil
 	}
 
 	return "", fmt.Errorf("could not parse remote URL: %s", urlStr)
