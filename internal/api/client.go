@@ -181,6 +181,12 @@ type Issue struct {
 	User    User   `json:"user"`
 }
 
+type PRHead struct {
+	Label string `json:"label"`
+	Ref   string `json:"ref"`
+	SHA   string `json:"sha"`
+}
+
 type PullRequest struct {
 	ID      int64  `json:"id"`
 	Number  int64  `json:"number"`
@@ -188,6 +194,8 @@ type PullRequest struct {
 	State   string `json:"state"`
 	HTMLURL string `json:"html_url"`
 	User    User   `json:"user"`
+	Head    PRHead `json:"head"`
+	Base    PRHead `json:"base"`
 }
 
 type Release struct {
@@ -304,11 +312,14 @@ func (c *Client) CreateIssueComment(ctx context.Context, owner, repo, number, bo
 	return c.Request(ctx, http.MethodPost, fmt.Sprintf("repos/%s/%s/issues/%s/comments", owner, repo, number), nil, payload, nil)
 }
 
-func (c *Client) ListPRs(ctx context.Context, owner, repo, state string, page, perPage int) ([]PullRequest, error) {
+func (c *Client) ListPRs(ctx context.Context, owner, repo, state, head string, page, perPage int) ([]PullRequest, error) {
 	query := map[string]string{
 		"state":    state,
 		"page":     fmt.Sprintf("%d", page),
 		"per_page": fmt.Sprintf("%d", perPage),
+	}
+	if head != "" {
+		query["head"] = head
 	}
 	var prs []PullRequest
 	if err := c.Request(ctx, http.MethodGet, fmt.Sprintf("repos/%s/%s/pulls", owner, repo), query, nil, &prs); err != nil {

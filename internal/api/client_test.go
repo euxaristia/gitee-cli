@@ -359,7 +359,7 @@ func TestListPRs(t *testing.T) {
 	srv, client := setup(t)
 	defer srv.Close()
 
-	prs, err := client.ListPRs(context.Background(), "owner", "repo", "open", 1, 30)
+	prs, err := client.ListPRs(context.Background(), "owner", "repo", "open", "", 1, 30)
 	if err != nil {
 		t.Fatalf("ListPRs error = %v", err)
 	}
@@ -561,7 +561,7 @@ func TestUpdateIssueState_Error(t *testing.T) {
 
 func TestListPRs_Error(t *testing.T) {
 	client := New("http://127.0.0.1:1", "token")
-	_, err := client.ListPRs(context.Background(), "o", "r", "open", 1, 10)
+	_, err := client.ListPRs(context.Background(), "o", "r", "open", "", 1, 10)
 	if err == nil {
 		t.Error("expected error")
 	}
