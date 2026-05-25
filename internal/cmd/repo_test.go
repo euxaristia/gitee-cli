@@ -1,9 +1,21 @@
 package cmd
 
 import (
+	"context"
+	"io"
 	"os"
+	"reflect"
 	"testing"
 )
+
+func captureGitArgs(app *App) *[]string {
+	var gotArgs []string
+	app.GitRunner = func(_ context.Context, args []string, _ io.Reader, _, _ io.Writer) error {
+		gotArgs = append([]string(nil), args...)
+		return nil
+	}
+	return &gotArgs
+}
 
 func TestRepoList(t *testing.T) {
 	srv, app := testServer()
@@ -126,20 +138,48 @@ func TestRepoClone_SSH(t *testing.T) {
 	srv, app := testServer()
 	defer srv.Close()
 
+	gotArgs := captureGitArgs(app)
+
 	cmd := newRepoCmd(app)
-	// Clone a non-existent repo - will fail but exercises the SSH URL branch
-	cmd.SetArgs([]string{"clone", "owner/nonexistent-test-repo-12345", "--ssh", "--dest", t.TempDir()})
-	// Expected to fail since repo doesn't exist on gitee.com
-	_ = cmd.Execute()
+	dest := t.TempDir()
+	cmd.SetArgs([]string{"clone", "owner/nonexistent-test-repo-12345", "--ssh", "--dest", dest})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("repo clone ssh error = %v", err)
+	}
+
+	wantArgs := []string{
+		"-c", "protocol.version=2",
+		"-c", "http.version=HTTP/1.1",
+		"-c", "http.postBuffer=524288000",
+		"clone", "git@gitee.com:owner/nonexistent-test-repo-12345.git", dest,
+	}
+	if !reflect.DeepEqual(*gotArgs, wantArgs) {
+		t.Errorf("git args = %v, want %v", *gotArgs, wantArgs)
+	}
 }
 
 func TestRepoClone_WithOptions(t *testing.T) {
 	srv, app := testServer()
 	defer srv.Close()
 
+	gotArgs := captureGitArgs(app)
+
 	cmd := newRepoCmd(app)
-	cmd.SetArgs([]string{"clone", "owner/nonexistent-test-repo-12345", "--depth", "1", "--recursive", "--dest", t.TempDir()})
-	_ = cmd.Execute()
+	dest := t.TempDir()
+	cmd.SetArgs([]string{"clone", "owner/nonexistent-test-repo-12345", "--depth", "1", "--recursive", "--dest", dest})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("repo clone with options error = %v", err)
+	}
+
+	wantArgs := []string{
+		"-c", "protocol.version=2",
+		"-c", "http.version=HTTP/1.1",
+		"-c", "http.postBuffer=524288000",
+		"clone", "https://gitee.com/owner/nonexistent-test-repo-12345.git", "--depth", "1", "--recursive", dest,
+	}
+	if !reflect.DeepEqual(*gotArgs, wantArgs) {
+		t.Errorf("git args = %v, want %v", *gotArgs, wantArgs)
+	}
 }
 
 func TestRepoList_WithOrg(t *testing.T) {

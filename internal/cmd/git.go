@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -16,6 +16,30 @@ const (
 	gitRetryAttempts = 3
 	gitRetryBaseWait = 1 * time.Second
 )
+
+type gitRunner func(context.Context, []string, io.Reader, io.Writer, io.Writer) error
+
+func runGitCommand(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	c := exec.CommandContext(ctx, "git", args...)
+	c.Stdin = stdin
+	c.Stdout = stdout
+	c.Stderr = stderr
+	return c.Run()
+}
+
+func appGitRunner(app *App) gitRunner {
+	if app != nil && app.GitRunner != nil {
+		return app.GitRunner
+	}
+	return runGitCommand
+}
+
+func appContext(app *App) context.Context {
+	if app != nil && app.Ctx != nil {
+		return app.Ctx
+	}
+	return context.Background()
+}
 
 func newGitCmd(app *App) *cobra.Command {
 	gitCmd := &cobra.Command{
@@ -76,12 +100,7 @@ func runGitWithRetry(app *App, cmd *cobra.Command, op string, args []string) err
 		gitArgs = append(gitArgs, op)
 		gitArgs = append(gitArgs, args...)
 
-		c := exec.Command("git", gitArgs...)
-		c.Stdin = os.Stdin
-		c.Stdout = multiStdout
-		c.Stderr = multiStderr
-
-		err := c.Run()
+		err := appGitRunner(app)(appContext(app), gitArgs, cmd.InOrStdin(), multiStdout, multiStderr)
 		if err == nil {
 			if attempt > 1 {
 				fmt.Fprintf(cmd.ErrOrStderr(), "gt: git %s succeeded on retry %d/%d\n", op, attempt, attempts)

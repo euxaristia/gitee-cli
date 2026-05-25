@@ -17,6 +17,7 @@ type App struct {
 	Client      *api.Client
 	ActiveToken string
 	Ctx         context.Context
+	GitRunner   gitRunner
 }
 
 func NewRootCmd() *cobra.Command {
