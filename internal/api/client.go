@@ -351,7 +351,7 @@ func (c *Client) CreatePR(ctx context.Context, owner, repo, title, head, base, b
 }
 
 func (c *Client) MergePR(ctx context.Context, owner, repo string, number int64, title string) error {
-	payload := map[string]any{"merge_commit_message": title}
+	payload := map[string]any{"title": title}
 	return c.Request(ctx, http.MethodPut, fmt.Sprintf("repos/%s/%s/pulls/%d/merge", owner, repo, number), nil, payload, nil)
 }
 
