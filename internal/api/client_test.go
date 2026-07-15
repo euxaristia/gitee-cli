@@ -79,6 +79,13 @@ func setup(t *testing.T) (*httptest.Server, *Client) {
 	})
 
 	mux.HandleFunc("/repos/owner/repo/pulls/1/merge", func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("merge handler failed to decode body: %v", err)
+		}
+		if title, ok := payload["title"].(string); !ok || title == "" {
+			t.Errorf("merge payload missing title field: %v", payload)
+		}
 		w.WriteHeader(http.StatusOK)
 	})
 
