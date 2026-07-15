@@ -77,6 +77,7 @@ func runGitWithRetry(app *App, cmd *Command, op string, args []string) error {
 		attempts = gitRetryAttempts
 	}
 
+	var lastErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
 		var stdoutBuf bytes.Buffer
 		var stderrBuf bytes.Buffer
@@ -102,10 +103,11 @@ func runGitWithRetry(app *App, cmd *Command, op string, args []string) error {
 			}
 			return nil
 		}
+		lastErr = err
 
 		errText := strings.ToLower(stderrBuf.String() + "\n" + stdoutBuf.String() + "\n" + err.Error())
 		if attempt == attempts || !isTransientGitErr(errText) {
-			return fmt.Errorf("git %s failed: %w", op, err)
+			break
 		}
 
 		wait := time.Duration(attempt) * gitRetryBaseWait
@@ -113,7 +115,7 @@ func runGitWithRetry(app *App, cmd *Command, op string, args []string) error {
 		time.Sleep(wait)
 	}
 
-	return nil
+	return fmt.Errorf("git %s failed: %w", op, lastErr)
 }
 
 func isTransientGitErr(msg string) bool {
