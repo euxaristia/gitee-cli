@@ -49,6 +49,10 @@ func (e *APIError) Error() string {
 }
 
 func (c *Client) Request(ctx context.Context, method, endpoint string, query map[string]string, body any, out any) error {
+	return c.RequestWithHeaders(ctx, method, endpoint, query, nil, body, out)
+}
+
+func (c *Client) RequestWithHeaders(ctx context.Context, method, endpoint string, query, headers map[string]string, body any, out any) error {
 	u, err := url.Parse(c.baseURL)
 	if err != nil {
 		return err
@@ -75,6 +79,9 @@ func (c *Client) Request(ctx context.Context, method, endpoint string, query map
 	req, err := c.newRequest(ctx, method, u.String(), bodyBytes)
 	if err != nil {
 		return err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 
 	resp, err := c.doWithRetry(req, bodyBytes)
@@ -129,6 +136,7 @@ func (c *Client) doWithRetry(req *http.Request, bodyBytes []byte) (*http.Respons
 			if err != nil {
 				return nil, err
 			}
+			r.Header = req.Header.Clone()
 			retryReq = r
 		}
 
