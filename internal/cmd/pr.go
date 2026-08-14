@@ -44,6 +44,21 @@ func findPRForBranch(app *App, owner, name, branch string) (*api.PullRequest, er
 	return nil, fmt.Errorf("no open pull requests found for branch %s", branch)
 }
 
+func resolvePRNumber(app *App, owner, name string, args []string) (int64, error) {
+	if len(args) == 1 {
+		return strconv.ParseInt(args[0], 10, 64)
+	}
+	branch, err := util.CurrentBranch()
+	if err != nil {
+		return 0, fmt.Errorf("could not determine current branch: %w", err)
+	}
+	pr, err := findPRForBranch(app, owner, name, branch)
+	if err != nil {
+		return 0, err
+	}
+	return pr.Number, nil
+}
+
 func newPRCmd(app *App) *Command {
 	return &Command{
 		Use:   "pr",
@@ -197,11 +212,7 @@ func runPRMerge(app *App, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := exactArgs(pos, 1); err != nil {
-		return err
-	}
-	num, err := strconv.ParseInt(pos[0], 10, 64)
-	if err != nil {
+	if err := maxArgs(pos, 1); err != nil {
 		return err
 	}
 	if err := resolveRepo(&repo); err != nil {
@@ -211,6 +222,10 @@ func runPRMerge(app *App, args []string) error {
 		return err
 	}
 	owner, name, err := util.SplitRepo(repo)
+	if err != nil {
+		return err
+	}
+	num, err := resolvePRNumber(app, owner, name, pos)
 	if err != nil {
 		return err
 	}
@@ -226,11 +241,7 @@ func runPRClose(app *App, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := exactArgs(pos, 1); err != nil {
-		return err
-	}
-	num, err := strconv.ParseInt(pos[0], 10, 64)
-	if err != nil {
+	if err := maxArgs(pos, 1); err != nil {
 		return err
 	}
 	if err := resolveRepo(&repo); err != nil {
@@ -240,6 +251,10 @@ func runPRClose(app *App, args []string) error {
 		return err
 	}
 	owner, name, err := util.SplitRepo(repo)
+	if err != nil {
+		return err
+	}
+	num, err := resolvePRNumber(app, owner, name, pos)
 	if err != nil {
 		return err
 	}
@@ -259,11 +274,7 @@ func runPRComment(app *App, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := exactArgs(pos, 1); err != nil {
-		return err
-	}
-	num, err := strconv.ParseInt(pos[0], 10, 64)
-	if err != nil {
+	if err := maxArgs(pos, 1); err != nil {
 		return err
 	}
 	if body == "" {
@@ -276,6 +287,10 @@ func runPRComment(app *App, args []string) error {
 		return err
 	}
 	owner, name, err := util.SplitRepo(repo)
+	if err != nil {
+		return err
+	}
+	num, err := resolvePRNumber(app, owner, name, pos)
 	if err != nil {
 		return err
 	}

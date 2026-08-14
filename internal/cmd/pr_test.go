@@ -125,6 +125,17 @@ func TestPRMerge(t *testing.T) {
 	}
 }
 
+func TestPRMerge_ImplicitNumber(t *testing.T) {
+	srv, app := testServer()
+	defer srv.Close()
+
+	cmd := newPRCmd(app)
+	cmd.SetArgs([]string{"merge", "--repo", "owner/repo"})
+	if err := cmd.Execute(); err != nil {
+		t.Errorf("pr merge without number error = %v", err)
+	}
+}
+
 func TestPRMerge_InvalidNumber(t *testing.T) {
 	srv, app := testServer()
 	defer srv.Close()
@@ -147,6 +158,17 @@ func TestPRClose(t *testing.T) {
 	}
 }
 
+func TestPRClose_ImplicitNumber(t *testing.T) {
+	srv, app := testServer()
+	defer srv.Close()
+
+	cmd := newPRCmd(app)
+	cmd.SetArgs([]string{"close", "--repo", "owner/repo"})
+	if err := cmd.Execute(); err != nil {
+		t.Errorf("pr close without number error = %v", err)
+	}
+}
+
 func TestPRClose_InvalidNumber(t *testing.T) {
 	srv, app := testServer()
 	defer srv.Close()
@@ -166,6 +188,17 @@ func TestPRComment(t *testing.T) {
 	cmd.SetArgs([]string{"comment", "1", "--repo", "owner/repo", "--body", "Nice!"})
 	if err := cmd.Execute(); err != nil {
 		t.Errorf("pr comment error = %v", err)
+	}
+}
+
+func TestPRComment_ImplicitNumber(t *testing.T) {
+	srv, app := testServer()
+	defer srv.Close()
+
+	cmd := newPRCmd(app)
+	cmd.SetArgs([]string{"comment", "--repo", "owner/repo", "--body", "Nice!"})
+	if err := cmd.Execute(); err != nil {
+		t.Errorf("pr comment without number error = %v", err)
 	}
 }
 
