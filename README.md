@@ -2,7 +2,7 @@
 
 A full-featured Gitee CLI inspired by `gh` for GitHub.
 
-The primary command is `gt` (short for Gitee), with `gitee` available as an alias.
+The command is `gt`.
 
 ## Features
 
@@ -24,12 +24,6 @@ go install ./cmd/gt
 ```
 
 This installs the `gt` binary to your `$GOPATH/bin` (usually `~/go/bin`).
-
-To also have `gitee` available as an alias, create a symlink:
-
-```bash
-ln -s "$(which gt)" "$(dirname $(which gt))/gitee"
-```
 
 ## Quick Start
 
@@ -63,7 +57,7 @@ Security behavior:
 ## Implementation Details
 
 ### Architecture
-- **CLI Framework**: Built using [Cobra](https://github.com/spf13/cobra), providing a structured and discoverable command hierarchy.
+- **CLI Framework**: `flag` and a small command dispatcher in the standard library.
 - **Unified State**: A central `App` struct is initialized at startup, ensuring consistent configuration and API client settings (base URL, timeouts, etc.) across all subcommands.
 
 ### Resilience & Retries

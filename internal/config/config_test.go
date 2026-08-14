@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -147,6 +148,9 @@ func TestLoad_InvalidYAML(t *testing.T) {
 }
 
 func TestConfigPath_Error(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("UserConfigDir does not require HOME on Windows")
+	}
 	// Unsetting HOME and XDG_CONFIG_HOME causes UserConfigDir to fail
 	t.Setenv("HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", "")
@@ -158,6 +162,9 @@ func TestConfigPath_Error(t *testing.T) {
 }
 
 func TestLoad_ConfigPathError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("UserConfigDir does not require HOME on Windows")
+	}
 	t.Setenv("HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", "")
 
@@ -184,6 +191,9 @@ func TestLoad_ReadFileError(t *testing.T) {
 }
 
 func TestSave_ConfigPathError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("UserConfigDir does not require HOME on Windows")
+	}
 	t.Setenv("HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", "")
 

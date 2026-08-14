@@ -1,127 +1,154 @@
 package cmd
 
 import (
+	"flag"
 	"fmt"
 	"strconv"
-
-	"github.com/spf13/cobra"
 
 	"github.com/euxaristia/gitee-cli/internal/util"
 )
 
-func newReleaseCmd(app *App) *cobra.Command {
-	releaseCmd := &cobra.Command{Use: "release", Short: "Manage releases"}
-
-	var repo string
-	var page, perPage int
-	listCmd := &cobra.Command{
-		Use:   "list",
-		Short: "List releases",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := ensureToken(app); err != nil {
-				return err
+func newReleaseCmd(app *App) *Command {
+	return &Command{
+		Use:   "release",
+		Short: "Manage releases",
+		run: func(c *Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("release requires a subcommand")
 			}
-			owner, name, err := util.SplitRepo(repo)
-			if err != nil {
-				return err
+			switch args[0] {
+			case "list":
+				return runReleaseList(app, args[1:])
+			case "view":
+				return runReleaseView(app, args[1:])
+			case "create":
+				return runReleaseCreate(app, args[1:])
+			case "delete":
+				return runReleaseDelete(app, args[1:])
+			default:
+				return fmt.Errorf("unknown release command %q", args[0])
 			}
-			releases, err := app.Client.ListReleases(app.Ctx, owner, name, page, perPage)
-			if err != nil {
-				return err
-			}
-			rows := make([][]string, 0, len(releases))
-			for _, r := range releases {
-				rows = append(rows, []string{r.TagName, r.Name, r.HTMLURL})
-			}
-			return printAny(app.Cfg.Output, []string{"TAG", "NAME", "URL"}, rows, releases)
 		},
 	}
-	listCmd.Flags().StringVar(&repo, "repo", "", "Repository owner/name")
-	listCmd.Flags().IntVar(&page, "page", 1, "Page number")
-	listCmd.Flags().IntVar(&perPage, "per-page", 30, "Page size")
-	_ = listCmd.MarkFlagRequired("repo")
+}
 
-	viewCmd := &cobra.Command{
-		Use:   "view <tag>",
-		Short: "View release by tag",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := ensureToken(app); err != nil {
-				return err
-			}
-			owner, name, err := util.SplitRepo(repo)
-			if err != nil {
-				return err
-			}
-			rel, err := app.Client.GetReleaseByTag(app.Ctx, owner, name, args[0])
-			if err != nil {
-				return err
-			}
-			rows := [][]string{{rel.TagName, rel.Name, rel.HTMLURL}}
-			return printAny(app.Cfg.Output, []string{"TAG", "NAME", "URL"}, rows, rel)
-		},
+func runReleaseList(app *App, args []string) error {
+	pos, repo, _, page, perPage, err := parseRepoFlags("release list", args, nil)
+	if err != nil {
+		return err
 	}
-	viewCmd.Flags().StringVar(&repo, "repo", "", "Repository owner/name")
-	_ = viewCmd.MarkFlagRequired("repo")
+	if err := exactArgs(pos, 0); err != nil {
+		return err
+	}
+	if err := requireFlag("repo", repo); err != nil {
+		return err
+	}
+	if err := ensureToken(app); err != nil {
+		return err
+	}
+	owner, name, err := util.SplitRepo(repo)
+	if err != nil {
+		return err
+	}
+	releases, err := app.Client.ListReleases(app.Ctx, owner, name, page, perPage)
+	if err != nil {
+		return err
+	}
+	rows := make([][]string, 0, len(releases))
+	for _, r := range releases {
+		rows = append(rows, []string{r.TagName, r.Name, r.HTMLURL})
+	}
+	return printAny(app.Cfg.Output, []string{"TAG", "NAME", "URL"}, rows, releases)
+}
 
+func runReleaseView(app *App, args []string) error {
+	pos, repo, _, _, _, err := parseRepoFlags("release view", args, nil)
+	if err != nil {
+		return err
+	}
+	if err := exactArgs(pos, 1); err != nil {
+		return err
+	}
+	if err := requireFlag("repo", repo); err != nil {
+		return err
+	}
+	if err := ensureToken(app); err != nil {
+		return err
+	}
+	owner, name, err := util.SplitRepo(repo)
+	if err != nil {
+		return err
+	}
+	rel, err := app.Client.GetReleaseByTag(app.Ctx, owner, name, pos[0])
+	if err != nil {
+		return err
+	}
+	rows := [][]string{{rel.TagName, rel.Name, rel.HTMLURL}}
+	return printAny(app.Cfg.Output, []string{"TAG", "NAME", "URL"}, rows, rel)
+}
+
+func runReleaseCreate(app *App, args []string) error {
 	var tag, name, body, target string
 	var draft bool
-	createCmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a release",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if tag == "" {
-				return fmt.Errorf("--tag is required")
-			}
-			if err := ensureToken(app); err != nil {
-				return err
-			}
-			owner, repoName, err := util.SplitRepo(repo)
-			if err != nil {
-				return err
-			}
-			rel, err := app.Client.CreateRelease(app.Ctx, owner, repoName, tag, name, body, target, draft)
-			if err != nil {
-				return err
-			}
-			fmt.Println(rel.HTMLURL)
-			return nil
-		},
+	pos, repo, _, _, _, err := parseRepoFlags("release create", args, func(fs *flag.FlagSet) {
+		fs.StringVar(&tag, "tag", "", "Tag name")
+		fs.StringVar(&name, "name", "", "Release name")
+		fs.StringVar(&body, "body", "", "Release notes")
+		fs.StringVar(&target, "target", "", "Target commitish")
+		fs.BoolVar(&draft, "draft", false, "Create as draft")
+	})
+	if err != nil {
+		return err
 	}
-	createCmd.Flags().StringVar(&repo, "repo", "", "Repository owner/name")
-	createCmd.Flags().StringVar(&tag, "tag", "", "Tag name")
-	createCmd.Flags().StringVar(&name, "name", "", "Release name")
-	createCmd.Flags().StringVar(&body, "body", "", "Release notes")
-	createCmd.Flags().StringVar(&target, "target", "", "Target commitish")
-	createCmd.Flags().BoolVar(&draft, "draft", false, "Create as draft")
-	_ = createCmd.MarkFlagRequired("repo")
-
-	deleteCmd := &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete release by ID",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return err
-			}
-			if err := ensureToken(app); err != nil {
-				return err
-			}
-			owner, repoName, err := util.SplitRepo(repo)
-			if err != nil {
-				return err
-			}
-			if err := app.Client.DeleteRelease(app.Ctx, owner, repoName, id); err != nil {
-				return err
-			}
-			fmt.Println("Deleted")
-			return nil
-		},
+	if err := exactArgs(pos, 0); err != nil {
+		return err
 	}
-	deleteCmd.Flags().StringVar(&repo, "repo", "", "Repository owner/name")
-	_ = deleteCmd.MarkFlagRequired("repo")
+	if err := requireFlag("repo", repo); err != nil {
+		return err
+	}
+	if tag == "" {
+		return fmt.Errorf("--tag is required")
+	}
+	if err := ensureToken(app); err != nil {
+		return err
+	}
+	owner, repoName, err := util.SplitRepo(repo)
+	if err != nil {
+		return err
+	}
+	rel, err := app.Client.CreateRelease(app.Ctx, owner, repoName, tag, name, body, target, draft)
+	if err != nil {
+		return err
+	}
+	fmt.Println(rel.HTMLURL)
+	return nil
+}
 
-	releaseCmd.AddCommand(listCmd, viewCmd, createCmd, deleteCmd)
-	return releaseCmd
+func runReleaseDelete(app *App, args []string) error {
+	pos, repo, _, _, _, err := parseRepoFlags("release delete", args, nil)
+	if err != nil {
+		return err
+	}
+	if err := exactArgs(pos, 1); err != nil {
+		return err
+	}
+	id, err := strconv.ParseInt(pos[0], 10, 64)
+	if err != nil {
+		return err
+	}
+	if err := requireFlag("repo", repo); err != nil {
+		return err
+	}
+	if err := ensureToken(app); err != nil {
+		return err
+	}
+	owner, repoName, err := util.SplitRepo(repo)
+	if err != nil {
+		return err
+	}
+	if err := app.Client.DeleteRelease(app.Ctx, owner, repoName, id); err != nil {
+		return err
+	}
+	fmt.Println("Deleted")
+	return nil
 }

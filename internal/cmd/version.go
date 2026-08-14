@@ -5,8 +5,6 @@ import (
 	"io"
 	"strings"
 	"unicode/utf8"
-
-	"github.com/spf13/cobra"
 )
 
 var version = "0.1.0"
@@ -40,12 +38,13 @@ func printVersionBanner(w io.Writer) {
 	fmt.Fprintf(w, "+%s+\n", strings.Repeat("-", width+2))
 }
 
-func newVersionCmd() *cobra.Command {
-	return &cobra.Command{
+func newVersionCmd() *Command {
+	return &Command{
 		Use:   "version",
 		Short: "Print version",
-		Run: func(cmd *cobra.Command, args []string) {
-			printVersionBanner(cmd.OutOrStdout())
+		run: func(c *Command, args []string) error {
+			printVersionBanner(c.OutOrStdout())
+			return nil
 		},
 	}
 }

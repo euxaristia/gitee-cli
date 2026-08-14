@@ -2,31 +2,56 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-
-	"github.com/spf13/cobra"
+	"io"
 )
 
-func newCompletionCmd(root *cobra.Command) *cobra.Command {
-	completionCmd := &cobra.Command{
+func newCompletionCmd() *Command {
+	return &Command{
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generate shell completion scripts",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			shell := args[0]
-			switch shell {
-			case "bash":
-				return root.GenBashCompletion(os.Stdout)
-			case "zsh":
-				return root.GenZshCompletion(os.Stdout)
-			case "fish":
-				return root.GenFishCompletion(os.Stdout, true)
-			case "powershell":
-				return root.GenPowerShellCompletionWithDesc(os.Stdout)
-			default:
-				return fmt.Errorf("unsupported shell %q", shell)
+		run: func(c *Command, args []string) error {
+			if err := exactArgs(args, 1); err != nil {
+				return err
 			}
+			return writeCompletion(c.OutOrStdout(), args[0])
 		},
 	}
-	return completionCmd
 }
+
+func writeCompletion(w io.Writer, shell string) error {
+	switch shell {
+	case "bash":
+		fmt.Fprint(w, bashCompletion)
+	case "zsh":
+		fmt.Fprint(w, zshCompletion)
+	case "fish":
+		fmt.Fprint(w, fishCompletion)
+	case "powershell":
+		fmt.Fprint(w, powershellCompletion)
+	default:
+		return fmt.Errorf("unsupported shell %q", shell)
+	}
+	return nil
+}
+
+const completionWords = "api auth commit completion config git issue pr pull push release repo status version"
+
+const bashCompletion = `#!/usr/bin/env bash
+_gt() {
+  COMPREPLY=($(compgen -W "` + completionWords + `" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+complete -F _gt gt
+`
+
+const zshCompletion = `#compdef gt
+_arguments '1: :(` + completionWords + `)'
+`
+
+const fishCompletion = `complete -c gt -f -a "` + completionWords + `"
+`
+
+const powershellCompletion = `Register-ArgumentCompleter -Native -CommandName gt -ScriptBlock {
+  param($wordToComplete)
+  '` + completionWords + `'.Split(' ') | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object { $_ }
+}
+`
