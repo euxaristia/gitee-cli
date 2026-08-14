@@ -83,8 +83,8 @@ func setup(t *testing.T) (*httptest.Server, *Client) {
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Errorf("merge handler failed to decode body: %v", err)
 		}
-		if title, ok := payload["title"].(string); !ok || title == "" {
-			t.Errorf("merge payload missing title field: %v", payload)
+		if title, ok := payload["title"].(string); !ok || title != "merge msg" {
+			t.Errorf("merge payload title = %v, want merge msg", payload)
 		}
 		w.WriteHeader(http.StatusOK)
 	})
