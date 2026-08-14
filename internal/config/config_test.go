@@ -1,11 +1,25 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
+
+func useConfigDir(t *testing.T, dir string) {
+	t.Helper()
+	orig := UserConfigDir
+	UserConfigDir = func() (string, error) { return dir, nil }
+	t.Cleanup(func() { UserConfigDir = orig })
+}
+
+func useConfigDirError(t *testing.T) {
+	t.Helper()
+	orig := UserConfigDir
+	UserConfigDir = func() (string, error) { return "", errors.New("no config dir") }
+	t.Cleanup(func() { UserConfigDir = orig })
+}
 
 func TestDefault(t *testing.T) {
 	cfg := Default()
@@ -42,7 +56,7 @@ func TestConfigPath(t *testing.T) {
 func TestLoad_FileNotExist(t *testing.T) {
 	// Point HOME to a temp dir with no config file
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	cfg, err := Load()
 	if err != nil {
@@ -59,7 +73,7 @@ func TestLoad_FileNotExist(t *testing.T) {
 
 func TestLoad_ValidFile(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	dir := filepath.Join(tmp, "gitee-cli")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -93,7 +107,7 @@ func TestLoad_ValidFile(t *testing.T) {
 
 func TestLoad_EmptyFields(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	dir := filepath.Join(tmp, "gitee-cli")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -131,7 +145,7 @@ func TestLoad_EmptyFields(t *testing.T) {
 
 func TestLoad_InvalidYAML(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	dir := filepath.Join(tmp, "gitee-cli")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -148,25 +162,16 @@ func TestLoad_InvalidYAML(t *testing.T) {
 }
 
 func TestConfigPath_Error(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("UserConfigDir does not require HOME on Windows")
-	}
-	// Unsetting HOME and XDG_CONFIG_HOME causes UserConfigDir to fail
-	t.Setenv("HOME", "")
-	t.Setenv("XDG_CONFIG_HOME", "")
+	useConfigDirError(t)
 
 	_, err := ConfigPath()
 	if err == nil {
-		t.Error("ConfigPath() expected error when HOME is unset")
+		t.Error("ConfigPath() expected error when the user config dir is unavailable")
 	}
 }
 
 func TestLoad_ConfigPathError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("UserConfigDir does not require HOME on Windows")
-	}
-	t.Setenv("HOME", "")
-	t.Setenv("XDG_CONFIG_HOME", "")
+	useConfigDirError(t)
 
 	_, err := Load()
 	if err == nil {
@@ -176,7 +181,7 @@ func TestLoad_ConfigPathError(t *testing.T) {
 
 func TestLoad_ReadFileError(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	// Create config.yaml as a directory to trigger a read error that isn't ErrNotExist
 	dir := filepath.Join(tmp, "gitee-cli", "config.yaml")
@@ -191,11 +196,7 @@ func TestLoad_ReadFileError(t *testing.T) {
 }
 
 func TestSave_ConfigPathError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("UserConfigDir does not require HOME on Windows")
-	}
-	t.Setenv("HOME", "")
-	t.Setenv("XDG_CONFIG_HOME", "")
+	useConfigDirError(t)
 
 	err := Save(Default())
 	if err == nil {
@@ -205,7 +206,7 @@ func TestSave_ConfigPathError(t *testing.T) {
 
 func TestSave_MkdirAllError(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	// Create a file at the path where the directory should be, to make MkdirAll fail
 	if err := os.WriteFile(filepath.Join(tmp, "gitee-cli"), []byte("block"), 0o444); err != nil {
@@ -220,7 +221,7 @@ func TestSave_MkdirAllError(t *testing.T) {
 
 func TestSaveAndLoad(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	cfg := Default()
 	cfg.Editor = "code"

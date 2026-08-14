@@ -39,7 +39,7 @@ func TestNewRootCmd_VersionSubcmd(t *testing.T) {
 
 func TestNewRootCmd_WithOutputFlag(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 	t.Setenv("GITEE_TOKEN", "test-token")
 
 	cmd := NewRootCmd()
@@ -54,7 +54,7 @@ func TestNewRootCmd_WithOutputFlag(t *testing.T) {
 
 func TestNewRootCmd_PersistentPreRunE_LoadsConfig(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 	t.Setenv("GITEE_TOKEN", "test-token")
 
 	cmd := NewRootCmd()
@@ -69,7 +69,7 @@ func TestNewRootCmd_PersistentPreRunE_LoadsConfig(t *testing.T) {
 
 func TestNewRootCmd_PersistentPreRunE_NoEnvToken(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 	t.Setenv("GITEE_TOKEN", "")
 
 	cmd := NewRootCmd()
@@ -84,7 +84,7 @@ func TestNewRootCmd_PersistentPreRunE_NoEnvToken(t *testing.T) {
 
 func TestNewRootCmd_RunE_NoVersion(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 	t.Setenv("GITEE_TOKEN", "test")
 
 	cmd := NewRootCmd()
@@ -99,7 +99,7 @@ func TestNewRootCmd_RunE_NoVersion(t *testing.T) {
 
 func TestNewRootCmd_ConfigLoadError(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 	t.Setenv("GITEE_TOKEN", "test")
 
 	// Create config.yaml as a directory to cause Load error
@@ -121,7 +121,7 @@ func TestNewRootCmd_ConfigLoadError(t *testing.T) {
 
 func TestNewRootCmd_LegacyToken(t *testing.T) {
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 	t.Setenv("GITEE_TOKEN", "")
 
 	// Write config with a legacy token
