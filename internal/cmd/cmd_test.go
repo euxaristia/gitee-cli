@@ -2,14 +2,30 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"testing"
 
 	"encoding/json"
 
 	"github.com/euxaristia/gitee-cli/internal/api"
 	"github.com/euxaristia/gitee-cli/internal/config"
 )
+
+func useConfigDir(t *testing.T, dir string) {
+	t.Helper()
+	orig := config.UserConfigDir
+	config.UserConfigDir = func() (string, error) { return dir, nil }
+	t.Cleanup(func() { config.UserConfigDir = orig })
+}
+
+func useConfigDirError(t *testing.T) {
+	t.Helper()
+	orig := config.UserConfigDir
+	config.UserConfigDir = func() (string, error) { return "", errors.New("no config dir") }
+	t.Cleanup(func() { config.UserConfigDir = orig })
+}
 
 // testServer creates a mock Gitee API server and returns the server and an App configured to use it.
 func testServer() (*httptest.Server, *App) {

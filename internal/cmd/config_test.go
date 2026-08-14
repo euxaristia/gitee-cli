@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/euxaristia/gitee-cli/internal/config"
@@ -143,7 +141,7 @@ func TestNewConfigCmd_Set(t *testing.T) {
 	defer srv.Close()
 
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	cmd := newConfigCmd(app)
 	cmd.SetArgs([]string{"set", "editor", "nano"})
@@ -171,7 +169,7 @@ func TestNewConfigCmd_Unset(t *testing.T) {
 	defer srv.Close()
 
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	app.Cfg.Editor = "vim"
 	cmd := newConfigCmd(app)
@@ -188,11 +186,7 @@ func TestNewConfigCmd_Set_SaveError(t *testing.T) {
 	srv, app := testServer()
 	defer srv.Close()
 
-	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
-	if err := os.WriteFile(filepath.Join(tmp, "gitee-cli"), []byte("block"), 0o444); err != nil {
-		t.Fatal(err)
-	}
+	useConfigDirError(t)
 
 	cmd := newConfigCmd(app)
 	cmd.SetArgs([]string{"set", "editor", "nano"})

@@ -36,11 +36,19 @@ func Default() *Config {
 	}
 }
 
-func ConfigPath() (string, error) {
+// UserConfigDir resolves the base directory for the CLI config. Tests replace
+// it so config IO stays in a temp dir on every OS.
+var UserConfigDir = defaultUserConfigDir
+
+func defaultUserConfigDir() (string, error) {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "gitee-cli", "config.yaml"), nil
+		return xdg, nil
 	}
-	base, err := os.UserConfigDir()
+	return os.UserConfigDir()
+}
+
+func ConfigPath() (string, error) {
+	base, err := UserConfigDir()
 	if err != nil {
 		return "", err
 	}

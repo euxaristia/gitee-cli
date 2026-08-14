@@ -23,7 +23,7 @@ func TestAuthLogin_WithToken(t *testing.T) {
 	defer srv.Close()
 
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	cmd := newAuthCmd(app)
 	cmd.SetArgs([]string{"login", "--token", "test-token-123"})
@@ -37,7 +37,7 @@ func TestAuthLogin_EmptyToken(t *testing.T) {
 	defer srv.Close()
 
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	cmd := newAuthCmd(app)
 	cmd.SetArgs([]string{"login", "--token", ""})
@@ -52,7 +52,7 @@ func TestAuthLogout(t *testing.T) {
 	defer srv.Close()
 
 	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	useConfigDir(t, tmp)
 
 	cmd := newAuthCmd(app)
 	cmd.SetArgs([]string{"logout"})
