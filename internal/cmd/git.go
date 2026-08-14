@@ -8,8 +8,6 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -41,39 +39,39 @@ func appContext(app *App) context.Context {
 	return context.Background()
 }
 
-func newGitCmd(app *App) *cobra.Command {
-	gitCmd := &cobra.Command{
+func newGitCmd(app *App) *Command {
+	return &Command{
 		Use:   "git",
 		Short: "Run git operations with retry for transient network failures",
-	}
-
-	gitCmd.AddCommand(
-		newGitOperationCmd(app, "commit"),
-		newGitOperationCmd(app, "push"),
-		newGitOperationCmd(app, "pull"),
-		newGitOperationCmd(app, "status"),
-	)
-	return gitCmd
-}
-
-func newGitShortcutCmd(app *App, name string) *cobra.Command {
-	cmd := newGitOperationCmd(app, name)
-	cmd.Use = fmt.Sprintf("%s [git args...]", name)
-	return cmd
-}
-
-func newGitOperationCmd(app *App, op string) *cobra.Command {
-	return &cobra.Command{
-		Use:                fmt.Sprintf("%s [git args...]", op),
-		Short:              fmt.Sprintf("Run `git %s`", op),
-		DisableFlagParsing: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runGitWithRetry(app, cmd, op, args)
+		run: func(c *Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("git requires a subcommand")
+			}
+			switch args[0] {
+			case "commit", "push", "pull", "status":
+				return runGitWithRetry(app, c, args[0], args[1:])
+			default:
+				return fmt.Errorf("unknown git command %q", args[0])
+			}
 		},
 	}
 }
 
-func runGitWithRetry(app *App, cmd *cobra.Command, op string, args []string) error {
+func newGitShortcutCmd(app *App, name string) *Command {
+	return newGitOperationCmd(app, name)
+}
+
+func newGitOperationCmd(app *App, op string) *Command {
+	return &Command{
+		Use:   fmt.Sprintf("%s [git args...]", op),
+		Short: fmt.Sprintf("Run `git %s`", op),
+		run: func(c *Command, args []string) error {
+			return runGitWithRetry(app, c, op, args)
+		},
+	}
+}
+
+func runGitWithRetry(app *App, cmd *Command, op string, args []string) error {
 	attempts := 1
 	if op == "push" || op == "pull" || op == "clone" {
 		attempts = gitRetryAttempts
@@ -83,12 +81,9 @@ func runGitWithRetry(app *App, cmd *cobra.Command, op string, args []string) err
 		var stdoutBuf bytes.Buffer
 		var stderrBuf bytes.Buffer
 
-		// Stream to both the user's terminal and our internal buffers for error analysis.
 		multiStdout := io.MultiWriter(cmd.OutOrStdout(), &stdoutBuf)
 		multiStderr := io.MultiWriter(cmd.ErrOrStderr(), &stderrBuf)
 
-		// Inject performance optimizations for long-distance/high-latency connections.
-		// HTTP/1.1 is often more stable than HTTP/2 over trans-Pacific links for Git's pattern.
 		gitArgs := []string{
 			"-c", "protocol.version=2",
 			"-c", "http.version=HTTP/1.1",

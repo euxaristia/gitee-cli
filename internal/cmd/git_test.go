@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/spf13/cobra"
-
 	"github.com/euxaristia/gitee-cli/internal/config"
 )
 
@@ -47,7 +45,7 @@ func TestIsTransientGitErr(t *testing.T) {
 
 func TestRunGitWithRetry_Success(t *testing.T) {
 	app := &App{Cfg: config.Default()}
-	cmd := &cobra.Command{}
+	cmd := &Command{}
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -62,7 +60,7 @@ func TestRunGitWithRetry_WithGitFlags(t *testing.T) {
 	cfg := config.Default()
 	cfg.GitFlags = []string{"--no-pager"}
 	app := &App{Cfg: cfg}
-	cmd := &cobra.Command{}
+	cmd := &Command{}
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -75,7 +73,7 @@ func TestRunGitWithRetry_WithGitFlags(t *testing.T) {
 
 func TestRunGitWithRetry_Failure(t *testing.T) {
 	app := &App{Cfg: config.Default()}
-	cmd := &cobra.Command{}
+	cmd := &Command{}
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -87,7 +85,7 @@ func TestRunGitWithRetry_Failure(t *testing.T) {
 }
 
 func TestRunGitWithRetry_NilApp(t *testing.T) {
-	cmd := &cobra.Command{}
+	cmd := &Command{}
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -104,9 +102,6 @@ func TestNewGitCmd(t *testing.T) {
 	if cmd.Use != "git" {
 		t.Errorf("newGitCmd().Use = %q, want git", cmd.Use)
 	}
-	if len(cmd.Commands()) != 4 {
-		t.Errorf("newGitCmd() has %d subcommands, want 4", len(cmd.Commands()))
-	}
 }
 
 func TestNewGitShortcutCmd(t *testing.T) {
@@ -122,8 +117,5 @@ func TestNewGitOperationCmd(t *testing.T) {
 	cmd := newGitOperationCmd(app, "status")
 	if cmd.Use != "status [git args...]" {
 		t.Errorf("newGitOperationCmd(status).Use = %q", cmd.Use)
-	}
-	if !cmd.DisableFlagParsing {
-		t.Error("newGitOperationCmd should disable flag parsing")
 	}
 }

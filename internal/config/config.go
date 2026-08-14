@@ -37,6 +37,9 @@ func Default() *Config {
 }
 
 func ConfigPath() (string, error) {
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, "gitee-cli", "config.yaml"), nil
+	}
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return "", err

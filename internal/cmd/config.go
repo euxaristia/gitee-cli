@@ -4,89 +4,92 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/euxaristia/gitee-cli/internal/config"
 	"github.com/euxaristia/gitee-cli/internal/output"
 )
 
-func newConfigCmd(app *App) *cobra.Command {
-	cfgCmd := &cobra.Command{Use: "config", Short: "Manage gitee CLI config"}
-
-	listCmd := &cobra.Command{
-		Use:   "list",
-		Short: "List configuration",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if app.Cfg.Output == string(output.FormatJSON) {
-				return output.PrintJSON(app.Cfg)
+func newConfigCmd(app *App) *Command {
+	return &Command{
+		Use:   "config",
+		Short: "Manage gitee CLI config",
+		run: func(c *Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("config requires a subcommand")
 			}
-			rows := [][]string{
-				{"host", app.Cfg.Host},
-				{"api_base", app.Cfg.APIBase},
-				{"output", app.Cfg.Output},
-				{"editor", app.Cfg.Editor},
-				{"git_protocol", app.Cfg.GitProtocol},
-				{"git_flags", strings.Join(app.Cfg.GitFlags, ",")},
-				{"token", "(managed by keychain; use `gt auth` commands)"},
+			switch args[0] {
+			case "list":
+				return runConfigList(app)
+			case "get":
+				return runConfigGet(app, args[1:])
+			case "set":
+				return runConfigSet(app, args[1:])
+			case "unset":
+				return runConfigUnset(app, args[1:])
+			case "path":
+				return runConfigPath()
+			default:
+				return fmt.Errorf("unknown config command %q", args[0])
 			}
-			output.PrintTable([]string{"KEY", "VALUE"}, rows)
-			return nil
 		},
 	}
+}
 
-	getCmd := &cobra.Command{
-		Use:   "get <key>",
-		Short: "Get a config value",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			v, err := getConfigValue(app.Cfg, args[0])
-			if err != nil {
-				return err
-			}
-			fmt.Println(v)
-			return nil
-		},
+func runConfigList(app *App) error {
+	if app.Cfg.Output == string(output.FormatJSON) {
+		return output.PrintJSON(app.Cfg)
 	}
-
-	setCmd := &cobra.Command{
-		Use:   "set <key> <value>",
-		Short: "Set a config value",
-		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := setConfigValue(app.Cfg, args[0], args[1]); err != nil {
-				return err
-			}
-			return config.Save(app.Cfg)
-		},
+	rows := [][]string{
+		{"host", app.Cfg.Host},
+		{"api_base", app.Cfg.APIBase},
+		{"output", app.Cfg.Output},
+		{"editor", app.Cfg.Editor},
+		{"git_protocol", app.Cfg.GitProtocol},
+		{"git_flags", strings.Join(app.Cfg.GitFlags, ",")},
+		{"token", "(managed by keychain; use `gt auth` commands)"},
 	}
+	output.PrintTable([]string{"KEY", "VALUE"}, rows)
+	return nil
+}
 
-	unsetCmd := &cobra.Command{
-		Use:   "unset <key>",
-		Short: "Unset a config key",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := setConfigValue(app.Cfg, args[0], ""); err != nil {
-				return err
-			}
-			return config.Save(app.Cfg)
-		},
+func runConfigGet(app *App, args []string) error {
+	if err := exactArgs(args, 1); err != nil {
+		return err
 	}
-
-	pathCmd := &cobra.Command{
-		Use:   "path",
-		Short: "Print config file path",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			p, err := config.ConfigPath()
-			if err != nil {
-				return err
-			}
-			fmt.Println(p)
-			return nil
-		},
+	v, err := getConfigValue(app.Cfg, args[0])
+	if err != nil {
+		return err
 	}
+	fmt.Println(v)
+	return nil
+}
 
-	cfgCmd.AddCommand(listCmd, getCmd, setCmd, unsetCmd, pathCmd)
-	return cfgCmd
+func runConfigSet(app *App, args []string) error {
+	if err := exactArgs(args, 2); err != nil {
+		return err
+	}
+	if err := setConfigValue(app.Cfg, args[0], args[1]); err != nil {
+		return err
+	}
+	return config.Save(app.Cfg)
+}
+
+func runConfigUnset(app *App, args []string) error {
+	if err := exactArgs(args, 1); err != nil {
+		return err
+	}
+	if err := setConfigValue(app.Cfg, args[0], ""); err != nil {
+		return err
+	}
+	return config.Save(app.Cfg)
+}
+
+func runConfigPath() error {
+	p, err := config.ConfigPath()
+	if err != nil {
+		return err
+	}
+	fmt.Println(p)
+	return nil
 }
 
 func getConfigValue(cfg *config.Config, key string) (string, error) {
