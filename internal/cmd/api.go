@@ -56,16 +56,23 @@ func runAPI(app *App, args []string) error {
 			body[k] = v
 		}
 	}
-	_ = headers
+	hdrs := map[string]string{}
+	for _, header := range headers {
+		k, v, err := splitHeader(header)
+		if err != nil {
+			return err
+		}
+		hdrs[k] = v
+	}
 	var out any
 	if strings.EqualFold(method, http.MethodDelete) {
-		return app.Client.Request(app.Ctx, strings.ToUpper(method), pos[0], query, nil, nil)
+		return app.Client.RequestWithHeaders(app.Ctx, strings.ToUpper(method), pos[0], query, hdrs, nil, nil)
 	}
 	var payload any
 	if len(body) > 0 {
 		payload = body
 	}
-	if err := app.Client.Request(app.Ctx, strings.ToUpper(method), pos[0], query, payload, &out); err != nil {
+	if err := app.Client.RequestWithHeaders(app.Ctx, strings.ToUpper(method), pos[0], query, hdrs, payload, &out); err != nil {
 		return err
 	}
 	b, err := json.MarshalIndent(out, "", "  ")
@@ -74,4 +81,13 @@ func runAPI(app *App, args []string) error {
 	}
 	fmt.Println(string(b))
 	return nil
+}
+
+func splitHeader(s string) (string, string, error) {
+	k, v, ok := strings.Cut(s, ":")
+	k = strings.TrimSpace(k)
+	if !ok || k == "" {
+		return "", "", fmt.Errorf("invalid header %q, expected key:value", s)
+	}
+	return k, strings.TrimSpace(v), nil
 }
