@@ -47,8 +47,14 @@ func newGitCmd(app *App) *Command {
 			if len(args) == 0 {
 				return fmt.Errorf("git requires a subcommand")
 			}
+			if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+				return runHelp(app, c, append([]string{"git"}, args[1:]...))
+			}
 			switch args[0] {
 			case "commit", "push", "pull", "status":
+				if len(args) > 1 && (args[1] == "help" || args[1] == "--help" || args[1] == "-h") {
+					return runHelp(app, c, []string{"git", args[0]})
+				}
 				return runGitWithRetry(app, c, args[0], args[1:])
 			default:
 				return fmt.Errorf("unknown git command %q", args[0])
@@ -66,6 +72,9 @@ func newGitOperationCmd(app *App, op string) *Command {
 		Use:   fmt.Sprintf("%s [git args...]", op),
 		Short: fmt.Sprintf("Run `git %s`", op),
 		run: func(c *Command, args []string) error {
+			if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+				return runHelp(app, c, []string{op})
+			}
 			return runGitWithRetry(app, c, op, args)
 		},
 	}

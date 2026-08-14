@@ -43,6 +43,9 @@ func newVersionCmd() *Command {
 		Use:   "version",
 		Short: "Print version",
 		run: func(c *Command, args []string) error {
+			if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+				return printHelp(c.OutOrStdout(), []string{"version"})
+			}
 			printVersionBanner(c.OutOrStdout())
 			return nil
 		},

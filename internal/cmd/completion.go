@@ -10,6 +10,9 @@ func newCompletionCmd() *Command {
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generate shell completion scripts",
 		run: func(c *Command, args []string) error {
+			if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+				return printHelp(c.OutOrStdout(), []string{"completion"})
+			}
 			if err := exactArgs(args, 1); err != nil {
 				return err
 			}
@@ -34,7 +37,7 @@ func writeCompletion(w io.Writer, shell string) error {
 	return nil
 }
 
-const completionWords = "api auth commit completion config git issue pr pull push release repo status version"
+const completionWords = "api auth commit completion config git help issue pr pull push release repo status version"
 
 const bashCompletion = `#!/usr/bin/env bash
 _gt() {

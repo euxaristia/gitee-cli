@@ -27,7 +27,7 @@ func NewRootCmd() *Command {
 		Short:        "A full-featured CLI for Gitee",
 		SilenceUsage: true,
 		run: func(c *Command, args []string) error {
-			rest, outputFormat, showVersion, help, err := parseGlobal(args)
+			rest, outputFormat, showVersion, isHelp, helpArgs, err := parseGlobal(args)
 			if err != nil {
 				return err
 			}
@@ -35,9 +35,21 @@ func NewRootCmd() *Command {
 				printVersionBanner(c.OutOrStdout())
 				return nil
 			}
-			if help || len(rest) == 0 {
-				printRootHelp(c.OutOrStdout())
-				return nil
+			if isHelp {
+				sub := newHelpCmd(app)
+				sub.stdout = c.stdout
+				sub.stderr = c.stderr
+				sub.stdin = c.stdin
+				sub.SetArgs(helpArgs)
+				return sub.Execute()
+			}
+			if len(rest) == 0 {
+				sub := newHelpCmd(app)
+				sub.stdout = c.stdout
+				sub.stderr = c.stderr
+				sub.stdin = c.stdin
+				sub.SetArgs(nil)
+				return sub.Execute()
 			}
 			if err := initApp(app, outputFormat); err != nil {
 				return err
@@ -47,19 +59,21 @@ func NewRootCmd() *Command {
 	}
 }
 
-func parseGlobal(args []string) (rest []string, outputFormat string, showVersion, help bool, err error) {
+func parseGlobal(args []string) (rest []string, outputFormat string, showVersion bool, isHelp bool, helpArgs []string, err error) {
+	var filtered []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
 		case a == "--":
-			return args[i+1:], outputFormat, showVersion, help, nil
+			filtered = append(filtered, args[i+1:]...)
+			i = len(args)
 		case a == "-h" || a == "--help":
-			return nil, outputFormat, showVersion, true, nil
+			isHelp = true
 		case a == "-V" || a == "--version":
 			showVersion = true
 		case a == "-o" || a == "--output":
 			if i+1 >= len(args) {
-				return nil, "", false, false, fmt.Errorf("flag needs an argument: %s", a)
+				return nil, "", false, false, nil, fmt.Errorf("flag needs an argument: %s", a)
 			}
 			i++
 			outputFormat = args[i]
@@ -67,13 +81,14 @@ func parseGlobal(args []string) (rest []string, outputFormat string, showVersion
 			outputFormat = strings.TrimPrefix(a, "-o=")
 		case strings.HasPrefix(a, "--output="):
 			outputFormat = strings.TrimPrefix(a, "--output=")
-		case strings.HasPrefix(a, "-"):
-			return args[i:], outputFormat, showVersion, help, nil
 		default:
-			return args[i:], outputFormat, showVersion, help, nil
+			filtered = append(filtered, a)
 		}
 	}
-	return nil, outputFormat, showVersion, help, nil
+	if isHelp {
+		return nil, outputFormat, showVersion, true, filtered, nil
+	}
+	return filtered, outputFormat, showVersion, false, nil, nil
 }
 
 func initApp(app *App, outputFormat string) error {
@@ -134,6 +149,8 @@ func dispatchRoot(app *App, c *Command, args []string) error {
 		sub = newConfigCmd(app)
 	case "completion":
 		sub = newCompletionCmd()
+	case "help":
+		sub = newHelpCmd(app)
 	case "version":
 		sub = newVersionCmd()
 	default:
@@ -147,32 +164,7 @@ func dispatchRoot(app *App, c *Command, args []string) error {
 }
 
 func printRootHelp(w io.Writer) {
-	fmt.Fprintln(w, "A full-featured CLI for Gitee")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "  gt [flags]")
-	fmt.Fprintln(w, "  gt [command]")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Available Commands:")
-	fmt.Fprintln(w, "  api         Make a raw API request to Gitee v5")
-	fmt.Fprintln(w, "  auth        Authenticate with Gitee")
-	fmt.Fprintln(w, "  commit      Run `git commit`")
-	fmt.Fprintln(w, "  completion  Generate shell completion scripts")
-	fmt.Fprintln(w, "  config      Manage gitee CLI config")
-	fmt.Fprintln(w, "  git         Run git operations with retry for transient network failures")
-	fmt.Fprintln(w, "  issue       Work with issues")
-	fmt.Fprintln(w, "  pr          Work with pull requests")
-	fmt.Fprintln(w, "  pull        Run `git pull`")
-	fmt.Fprintln(w, "  push        Run `git push`")
-	fmt.Fprintln(w, "  release     Manage releases")
-	fmt.Fprintln(w, "  repo        Work with repositories")
-	fmt.Fprintln(w, "  status      Run `git status`")
-	fmt.Fprintln(w, "  version     Print version")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Flags:")
-	fmt.Fprintln(w, "  -h, --help            help")
-	fmt.Fprintln(w, "  -o, --output string   Output format: table|json")
-	fmt.Fprintln(w, "  -V, --version         Print version information")
+	_ = printHelp(w, nil)
 }
 
 func ensureToken(app *App) error {

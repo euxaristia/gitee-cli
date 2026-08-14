@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"strings"
@@ -17,13 +18,16 @@ func newRepoCmd(app *App) *Command {
 			if len(args) == 0 {
 				return fmt.Errorf("repo requires a subcommand")
 			}
+			if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+				return runHelp(app, c, append([]string{"repo"}, args[1:]...))
+			}
 			switch args[0] {
 			case "list":
-				return runRepoList(app, args[1:])
+				return runRepoList(app, c, args[1:])
 			case "view":
-				return runRepoView(app, args[1:])
+				return runRepoView(app, c, args[1:])
 			case "create":
-				return runRepoCreate(app, args[1:])
+				return runRepoCreate(app, c, args[1:])
 			case "clone":
 				return runRepoClone(app, c, args[1:])
 			default:
@@ -33,7 +37,7 @@ func newRepoCmd(app *App) *Command {
 	}
 }
 
-func runRepoList(app *App, args []string) error {
+func runRepoList(app *App, c *Command, args []string) error {
 	var org, visibility string
 	var page, perPage int
 	pos, err := parseArgs("repo list", args, func(fs *flag.FlagSet) {
@@ -43,6 +47,9 @@ func runRepoList(app *App, args []string) error {
 		fs.IntVar(&perPage, "per-page", 30, "Page size")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"repo", "list"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 0); err != nil {
@@ -66,9 +73,12 @@ func runRepoList(app *App, args []string) error {
 	return printAny(app.Cfg.Output, []string{"NAME", "VISIBILITY", "DEFAULT", "URL"}, rows, repos)
 }
 
-func runRepoView(app *App, args []string) error {
+func runRepoView(app *App, c *Command, args []string) error {
 	pos, err := parseArgs("repo view", args, func(fs *flag.FlagSet) {})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"repo", "view"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 1); err != nil {
@@ -89,7 +99,7 @@ func runRepoView(app *App, args []string) error {
 	return printAny(app.Cfg.Output, []string{"NAME", "DEFAULT", "PRIVATE", "URL"}, rows, r)
 }
 
-func runRepoCreate(app *App, args []string) error {
+func runRepoCreate(app *App, c *Command, args []string) error {
 	var name, desc, org string
 	var private bool
 	pos, err := parseArgs("repo create", args, func(fs *flag.FlagSet) {
@@ -99,6 +109,9 @@ func runRepoCreate(app *App, args []string) error {
 		fs.BoolVar(&private, "private", false, "Create private repository")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"repo", "create"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 0); err != nil {
@@ -132,6 +145,9 @@ func runRepoClone(app *App, c *Command, args []string) error {
 		fs.BoolVar(&useSSH, "ssh", false, "Use SSH protocol for cloning")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"repo", "clone"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 1); err != nil {
