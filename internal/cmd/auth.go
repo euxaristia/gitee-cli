@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -21,20 +22,22 @@ func newAuthCmd(app *App) *Command {
 			if len(args) == 0 {
 				return fmt.Errorf("auth requires a subcommand")
 			}
+			if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+				return runHelp(app, c, append([]string{"auth"}, args[1:]...))
+			}
 			switch args[0] {
 			case "login":
-				return runAuthLogin(app, args[1:])
+				return runAuthLogin(app, c, args[1:])
 			case "logout":
-				return runAuthLogout(app)
+				return runAuthLogout(app, c, args[1:])
 			case "status":
-				return runAuthStatus(app, c)
+				return runAuthStatus(app, c, args[1:])
 			case "token":
-				runAuthToken(app)
-				return nil
+				return runAuthToken(app, c, args[1:])
 			case "git-credential":
-				return runAuthGitCredential(app, args[1:])
+				return runAuthGitCredential(app, c, args[1:])
 			case "setup-git":
-				return runAuthSetupGit()
+				return runAuthSetupGit(c, args[1:])
 			default:
 				return fmt.Errorf("unknown auth command %q", args[0])
 			}
@@ -42,12 +45,15 @@ func newAuthCmd(app *App) *Command {
 	}
 }
 
-func runAuthLogin(app *App, args []string) error {
+func runAuthLogin(app *App, c *Command, args []string) error {
 	var token string
 	_, err := parseArgs("auth login", args, func(fs *flag.FlagSet) {
 		fs.StringVar(&token, "token", "", "Gitee access token")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"auth", "login"})
+		}
 		return err
 	}
 	if token == "" {
@@ -84,7 +90,10 @@ func runAuthLogin(app *App, args []string) error {
 	return nil
 }
 
-func runAuthLogout(app *App) error {
+func runAuthLogout(app *App, c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"auth", "logout"})
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -102,7 +111,10 @@ func runAuthLogout(app *App) error {
 	return nil
 }
 
-func runAuthStatus(app *App, c *Command) error {
+func runAuthStatus(app *App, c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"auth", "status"})
+	}
 	w := c.OutOrStdout()
 	host := app.Cfg.Host
 	if host == "" {
@@ -131,19 +143,26 @@ func runAuthStatus(app *App, c *Command) error {
 	return nil
 }
 
-func runAuthToken(app *App) {
+func runAuthToken(app *App, c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"auth", "token"})
+	}
 	if os.Getenv("GITEE_TOKEN") != "" {
 		fmt.Fprintln(os.Stdout, "Using token from GITEE_TOKEN")
-		return
+		return nil
 	}
 	if app.ActiveToken != "" {
 		fmt.Fprintln(os.Stdout, "Using token from keychain")
-		return
+		return nil
 	}
 	fmt.Fprintln(os.Stdout, "No token configured")
+	return nil
 }
 
-func runAuthGitCredential(app *App, args []string) error {
+func runAuthGitCredential(app *App, c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"auth", "git-credential"})
+	}
 	if len(args) == 0 {
 		return nil
 	}
@@ -188,7 +207,10 @@ func runAuthGitCredential(app *App, args []string) error {
 	return nil
 }
 
-func runAuthSetupGit() error {
+func runAuthSetupGit(c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"auth", "setup-git"})
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		return err

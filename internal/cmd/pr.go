@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"strconv"
@@ -67,19 +68,22 @@ func newPRCmd(app *App) *Command {
 			if len(args) == 0 {
 				return fmt.Errorf("pr requires a subcommand")
 			}
+			if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+				return runHelp(app, c, append([]string{"pr"}, args[1:]...))
+			}
 			switch args[0] {
 			case "list":
-				return runPRList(app, args[1:])
+				return runPRList(app, c, args[1:])
 			case "view":
-				return runPRView(app, args[1:])
+				return runPRView(app, c, args[1:])
 			case "create":
-				return runPRCreate(app, args[1:])
+				return runPRCreate(app, c, args[1:])
 			case "merge":
-				return runPRMerge(app, args[1:])
+				return runPRMerge(app, c, args[1:])
 			case "close":
-				return runPRClose(app, args[1:])
+				return runPRClose(app, c, args[1:])
 			case "comment":
-				return runPRComment(app, args[1:])
+				return runPRComment(app, c, args[1:])
 			default:
 				return fmt.Errorf("unknown pr command %q", args[0])
 			}
@@ -87,9 +91,12 @@ func newPRCmd(app *App) *Command {
 	}
 }
 
-func runPRList(app *App, args []string) error {
+func runPRList(app *App, c *Command, args []string) error {
 	pos, repo, state, page, perPage, err := parseRepoFlags("pr list", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"pr", "list"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 0); err != nil {
@@ -116,9 +123,12 @@ func runPRList(app *App, args []string) error {
 	return printAny(app.Cfg.Output, []string{"NUMBER", "STATE", "TITLE", "AUTHOR"}, rows, prs)
 }
 
-func runPRView(app *App, args []string) error {
+func runPRView(app *App, c *Command, args []string) error {
 	pos, repo, _, _, _, err := parseRepoFlags("pr view", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"pr", "view"})
+		}
 		return err
 	}
 	if err := maxArgs(pos, 1); err != nil {
@@ -166,7 +176,7 @@ func runPRView(app *App, args []string) error {
 	return nil
 }
 
-func runPRCreate(app *App, args []string) error {
+func runPRCreate(app *App, c *Command, args []string) error {
 	var title, body, head, base string
 	pos, repo, _, _, _, err := parseRepoFlags("pr create", args, func(fs *flag.FlagSet) {
 		fs.StringVar(&title, "title", "", "PR title")
@@ -175,6 +185,9 @@ func runPRCreate(app *App, args []string) error {
 		fs.StringVar(&base, "base", "", "Base branch")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"pr", "create"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 0); err != nil {
@@ -204,12 +217,15 @@ func runPRCreate(app *App, args []string) error {
 	return nil
 }
 
-func runPRMerge(app *App, args []string) error {
+func runPRMerge(app *App, c *Command, args []string) error {
 	var mergeTitle string
 	pos, repo, _, _, _, err := parseRepoFlags("pr merge", args, func(fs *flag.FlagSet) {
 		fs.StringVar(&mergeTitle, "message", "", "Merge message")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"pr", "merge"})
+		}
 		return err
 	}
 	if err := maxArgs(pos, 1); err != nil {
@@ -236,9 +252,12 @@ func runPRMerge(app *App, args []string) error {
 	return nil
 }
 
-func runPRClose(app *App, args []string) error {
+func runPRClose(app *App, c *Command, args []string) error {
 	pos, repo, _, _, _, err := parseRepoFlags("pr close", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"pr", "close"})
+		}
 		return err
 	}
 	if err := maxArgs(pos, 1); err != nil {
@@ -266,12 +285,15 @@ func runPRClose(app *App, args []string) error {
 	return nil
 }
 
-func runPRComment(app *App, args []string) error {
+func runPRComment(app *App, c *Command, args []string) error {
 	var body string
 	pos, repo, _, _, _, err := parseRepoFlags("pr comment", args, func(fs *flag.FlagSet) {
 		fs.StringVar(&body, "body", "", "Comment body")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"pr", "comment"})
+		}
 		return err
 	}
 	if err := maxArgs(pos, 1); err != nil {

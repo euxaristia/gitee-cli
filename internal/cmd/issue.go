@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 
@@ -16,21 +17,24 @@ func newIssueCmd(app *App) *Command {
 			if len(args) == 0 {
 				return fmt.Errorf("issue requires a subcommand")
 			}
+			if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+				return runHelp(app, c, append([]string{"issue"}, args[1:]...))
+			}
 			switch args[0] {
 			case "list":
-				return runIssueList(app, args[1:])
+				return runIssueList(app, c, args[1:])
 			case "view":
-				return runIssueView(app, args[1:])
+				return runIssueView(app, c, args[1:])
 			case "create":
-				return runIssueCreate(app, args[1:])
+				return runIssueCreate(app, c, args[1:])
 			case "comment":
-				return runIssueComment(app, args[1:])
+				return runIssueComment(app, c, args[1:])
 			case "close":
-				return runIssueClose(app, args[1:])
+				return runIssueClose(app, c, args[1:])
 			case "reopen":
-				return runIssueReopen(app, args[1:])
+				return runIssueReopen(app, c, args[1:])
 			case "status":
-				return runIssueStatus(app)
+				return runIssueStatus(app, c, args[1:])
 			default:
 				return fmt.Errorf("unknown issue command %q", args[0])
 			}
@@ -54,9 +58,12 @@ func parseRepoFlags(name string, args []string, extra func(*flag.FlagSet)) (pos 
 	return pos, repo, state, page, perPage, err
 }
 
-func runIssueList(app *App, args []string) error {
+func runIssueList(app *App, c *Command, args []string) error {
 	pos, repo, state, page, perPage, err := parseRepoFlags("issue list", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"issue", "list"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 0); err != nil {
@@ -83,9 +90,12 @@ func runIssueList(app *App, args []string) error {
 	return printAny(app.Cfg.Output, []string{"NUMBER", "STATE", "TITLE", "AUTHOR"}, rows, issues)
 }
 
-func runIssueView(app *App, args []string) error {
+func runIssueView(app *App, c *Command, args []string) error {
 	pos, repo, _, _, _, err := parseRepoFlags("issue view", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"issue", "view"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 1); err != nil {
@@ -113,13 +123,16 @@ func runIssueView(app *App, args []string) error {
 	return nil
 }
 
-func runIssueCreate(app *App, args []string) error {
+func runIssueCreate(app *App, c *Command, args []string) error {
 	var title, body string
 	pos, repo, _, _, _, err := parseRepoFlags("issue create", args, func(fs *flag.FlagSet) {
 		fs.StringVar(&title, "title", "", "Issue title")
 		fs.StringVar(&body, "body", "", "Issue body")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"issue", "create"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 0); err != nil {
@@ -149,12 +162,15 @@ func runIssueCreate(app *App, args []string) error {
 	return nil
 }
 
-func runIssueComment(app *App, args []string) error {
+func runIssueComment(app *App, c *Command, args []string) error {
 	var body string
 	pos, repo, _, _, _, err := parseRepoFlags("issue comment", args, func(fs *flag.FlagSet) {
 		fs.StringVar(&body, "body", "", "Comment body")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"issue", "comment"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 1); err != nil {
@@ -180,9 +196,12 @@ func runIssueComment(app *App, args []string) error {
 	return nil
 }
 
-func runIssueClose(app *App, args []string) error {
+func runIssueClose(app *App, c *Command, args []string) error {
 	pos, repo, _, _, _, err := parseRepoFlags("issue close", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"issue", "close"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 1); err != nil {
@@ -194,9 +213,12 @@ func runIssueClose(app *App, args []string) error {
 	return changeIssueState(app, repo, pos[0], "closed")
 }
 
-func runIssueReopen(app *App, args []string) error {
+func runIssueReopen(app *App, c *Command, args []string) error {
 	pos, repo, _, _, _, err := parseRepoFlags("issue reopen", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"issue", "reopen"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 1); err != nil {
@@ -208,7 +230,10 @@ func runIssueReopen(app *App, args []string) error {
 	return changeIssueState(app, repo, pos[0], "open")
 }
 
-func runIssueStatus(app *App) error {
+func runIssueStatus(app *App, c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"issue", "status"})
+	}
 	if err := ensureToken(app); err != nil {
 		return err
 	}

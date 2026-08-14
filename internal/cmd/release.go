@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"strconv"
@@ -16,15 +17,18 @@ func newReleaseCmd(app *App) *Command {
 			if len(args) == 0 {
 				return fmt.Errorf("release requires a subcommand")
 			}
+			if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+				return runHelp(app, c, append([]string{"release"}, args[1:]...))
+			}
 			switch args[0] {
 			case "list":
-				return runReleaseList(app, args[1:])
+				return runReleaseList(app, c, args[1:])
 			case "view":
-				return runReleaseView(app, args[1:])
+				return runReleaseView(app, c, args[1:])
 			case "create":
-				return runReleaseCreate(app, args[1:])
+				return runReleaseCreate(app, c, args[1:])
 			case "delete":
-				return runReleaseDelete(app, args[1:])
+				return runReleaseDelete(app, c, args[1:])
 			default:
 				return fmt.Errorf("unknown release command %q", args[0])
 			}
@@ -32,9 +36,12 @@ func newReleaseCmd(app *App) *Command {
 	}
 }
 
-func runReleaseList(app *App, args []string) error {
+func runReleaseList(app *App, c *Command, args []string) error {
 	pos, repo, _, page, perPage, err := parseRepoFlags("release list", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"release", "list"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 0); err != nil {
@@ -61,9 +68,12 @@ func runReleaseList(app *App, args []string) error {
 	return printAny(app.Cfg.Output, []string{"TAG", "NAME", "URL"}, rows, releases)
 }
 
-func runReleaseView(app *App, args []string) error {
+func runReleaseView(app *App, c *Command, args []string) error {
 	pos, repo, _, _, _, err := parseRepoFlags("release view", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"release", "view"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 1); err != nil {
@@ -87,7 +97,7 @@ func runReleaseView(app *App, args []string) error {
 	return printAny(app.Cfg.Output, []string{"TAG", "NAME", "URL"}, rows, rel)
 }
 
-func runReleaseCreate(app *App, args []string) error {
+func runReleaseCreate(app *App, c *Command, args []string) error {
 	var tag, name, body, target string
 	var draft bool
 	pos, repo, _, _, _, err := parseRepoFlags("release create", args, func(fs *flag.FlagSet) {
@@ -98,6 +108,9 @@ func runReleaseCreate(app *App, args []string) error {
 		fs.BoolVar(&draft, "draft", false, "Create as draft")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"release", "create"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 0); err != nil {
@@ -124,9 +137,12 @@ func runReleaseCreate(app *App, args []string) error {
 	return nil
 }
 
-func runReleaseDelete(app *App, args []string) error {
+func runReleaseDelete(app *App, c *Command, args []string) error {
 	pos, repo, _, _, _, err := parseRepoFlags("release delete", args, nil)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"release", "delete"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 1); err != nil {

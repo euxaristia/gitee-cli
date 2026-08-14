@@ -16,17 +16,20 @@ func newConfigCmd(app *App) *Command {
 			if len(args) == 0 {
 				return fmt.Errorf("config requires a subcommand")
 			}
+			if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+				return runHelp(app, c, append([]string{"config"}, args[1:]...))
+			}
 			switch args[0] {
 			case "list":
-				return runConfigList(app)
+				return runConfigList(app, c, args[1:])
 			case "get":
-				return runConfigGet(app, args[1:])
+				return runConfigGet(app, c, args[1:])
 			case "set":
-				return runConfigSet(app, args[1:])
+				return runConfigSet(app, c, args[1:])
 			case "unset":
-				return runConfigUnset(app, args[1:])
+				return runConfigUnset(app, c, args[1:])
 			case "path":
-				return runConfigPath()
+				return runConfigPath(c, args[1:])
 			default:
 				return fmt.Errorf("unknown config command %q", args[0])
 			}
@@ -34,7 +37,10 @@ func newConfigCmd(app *App) *Command {
 	}
 }
 
-func runConfigList(app *App) error {
+func runConfigList(app *App, c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"config", "list"})
+	}
 	if app.Cfg.Output == string(output.FormatJSON) {
 		return output.PrintJSON(app.Cfg)
 	}
@@ -51,7 +57,10 @@ func runConfigList(app *App) error {
 	return nil
 }
 
-func runConfigGet(app *App, args []string) error {
+func runConfigGet(app *App, c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"config", "get"})
+	}
 	if err := exactArgs(args, 1); err != nil {
 		return err
 	}
@@ -63,7 +72,10 @@ func runConfigGet(app *App, args []string) error {
 	return nil
 }
 
-func runConfigSet(app *App, args []string) error {
+func runConfigSet(app *App, c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"config", "set"})
+	}
 	if err := exactArgs(args, 2); err != nil {
 		return err
 	}
@@ -73,7 +85,10 @@ func runConfigSet(app *App, args []string) error {
 	return config.Save(app.Cfg)
 }
 
-func runConfigUnset(app *App, args []string) error {
+func runConfigUnset(app *App, c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"config", "unset"})
+	}
 	if err := exactArgs(args, 1); err != nil {
 		return err
 	}
@@ -83,7 +98,10 @@ func runConfigUnset(app *App, args []string) error {
 	return config.Save(app.Cfg)
 }
 
-func runConfigPath() error {
+func runConfigPath(c *Command, args []string) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		return printHelp(c.OutOrStdout(), []string{"config", "path"})
+	}
 	p, err := config.ConfigPath()
 	if err != nil {
 		return err

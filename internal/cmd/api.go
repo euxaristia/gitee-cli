@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -15,12 +16,15 @@ func newAPICmd(app *App) *Command {
 		Use:   "api <endpoint>",
 		Short: "Make a raw API request to Gitee v5",
 		run: func(c *Command, args []string) error {
-			return runAPI(app, args)
+			if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+				return runHelp(app, c, []string{"api"})
+			}
+			return runAPI(app, c, args)
 		},
 	}
 }
 
-func runAPI(app *App, args []string) error {
+func runAPI(app *App, c *Command, args []string) error {
 	method := http.MethodGet
 	var fields []string
 	var headers []string
@@ -33,6 +37,9 @@ func runAPI(app *App, args []string) error {
 		fs.Var((*stringsFlag)(&headers), "H", "Add request header key:value")
 	})
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return printHelp(c.OutOrStdout(), []string{"api"})
+		}
 		return err
 	}
 	if err := exactArgs(pos, 1); err != nil {
